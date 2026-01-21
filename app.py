@@ -28,25 +28,30 @@ class Config:
     """Configuration class for database and app settings"""
     
     # MySQL Database Configuration - USE ENVIRONMENT VARIABLES IN PRODUCTION
-    DB_HOST = os.getenv('DB_HOST', 'localhost')
-    DB_USER = os.getenv('DB_USER', 'root')
-    DB_PASSWORD = os.getenv('DB_PASSWORD', 'your_password')  # CHANGE THIS or set env variable
-    DB_NAME = os.getenv('DB_NAME', 'dam_system')
-    
+   
+    """Configuration class for database and app settings"""
+
+    # MySQL Database Configuration
+    DB_HOST = 'localhost'
+    DB_USER = 'dam_user'
+    DB_PASSWORD = 'Dam@123'
+    DB_NAME = 'dam_system'
+
     # Flask Configuration
-    SECRET_KEY = os.getenv('SECRET_KEY', 'your-secret-key-change-this')  # CHANGE THIS or set env variable
-    
+    SECRET_KEY = 'your-secret-key-change-this'
+
     # Security Settings
     WORKING_HOUR_START = 9
     WORKING_HOUR_END = 18
     MAX_FAILED_ATTEMPTS = 5
     FAILED_ATTEMPTS_WINDOW = 5  # minutes
-    
+
     # Severity Levels
     SEVERITY_CRITICAL = 'Critical'
     SEVERITY_HIGH = 'High'
     SEVERITY_MEDIUM = 'Medium'
     SEVERITY_LOW = 'Low'
+
 
 # =====================================================
 # DATABASE CONNECTION CLASS

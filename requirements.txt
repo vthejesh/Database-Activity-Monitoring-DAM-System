@@ -1,0 +1,511 @@
+Database Activity Monitoring (DAM) System
+🎯 Project Overview
+A comprehensive Database Activity Monitoring system that tracks, logs, and detects suspicious database activities using MySQL and Python OOP principles. This system implements enterprise-grade security features including Role-Based Access Control (RBAC), brute force detection, and anomalous behavior monitoring.
+
+🔐 Implemented Security Rules
+1. Role-Based Access Control (RBAC)
+Description: Guests are restricted to SELECT operations only. Any DML operations (INSERT/UPDATE/DELETE) by Guest users are blocked and flagged.
+Severity: CRITICAL
+Implementation: Checked in Python before database operations and logged as security violations
+Detection Logic:
+python
+  if user_role == 'Guest' and operation in ['INSERT', 'UPDATE', 'DELETE']:
+      # Block operation and create CRITICAL alert
+2. Brute Force Attack Detection
+Description: Monitors the activity_logs table for more than 5 failed authentication attempts within a 5-minute sliding window
+Severity: HIGH
+Implementation: Tracks failed login attempts by username (even for non-existent users)
+Detection Logic:
+sql
+  SELECT COUNT(*) FROM activity_logs
+  WHERE operation_type = 'LOGIN'
+    AND operation_status = 'Failed'
+    AND operation_details LIKE '%username%'
+    AND access_timestamp >= DATE_SUB(NOW(), INTERVAL 5 MINUTE)
+  -- If count > 5, flag as brute force attack
+3. Anomalous Timing Detection
+Description: Flags any database interaction occurring outside the corporate window (09:00 - 18:00)
+Severity: MEDIUM
+Implementation: Automatically checks timestamp hour for every logged activity
+Detection Logic:
+python
+  hour = activity_timestamp.hour
+  if hour < 9 or hour >= 18:
+      # Flag as anomalous timing
+📦 Project Structure
+dam_system/
+│
+├── app.py                  # Main Flask application (Python OOP backend)
+├── schema.sql             # Database table definitions (CREATE TABLES)
+├── seed_data.sql          # Sample data for testing (INSERT statements)
+├── requirements.txt        # Python dependencies
+├── README.md              # This file
+│
+└── .env.example           # Environment variables template (for production)
+🛠️ Technology Stack
+Backend: Python 3.8+ with Flask Framework
+Database: MySQL 8.0+
+Security: Werkzeug (bcrypt password hashing)
+OOP Design: 5 main classes with clear separation of concerns
+🏗️ Python OOP Architecture
+Class Hierarchy
+DatabaseConnection
+Manages MySQL connections with proper error handling
+Provides cursor management and transaction control
+UserManager
+Handles user authentication with bcrypt password hashing
+Manages user CRUD operations
+Security: All queries use parameterized statements to prevent SQL injection
+ActivityLogger
+Logs all database operations (SELECT, INSERT, UPDATE, DELETE, LOGIN, LOGOUT)
+Tracks failed login attempts by username for brute force detection
+Stores IP addresses and timestamps
+SuspiciousActivityDetector
+Implements the 3 security rules
+Assigns severity levels (Critical, High, Medium, Low)
+Creates security alerts in the database
+Core Security Logic:
+RBAC enforcement
+Brute force pattern detection
+Anomalous timing analysis
+ProductManager
+Manages sample product CRUD operations
+All operations are logged and monitored
+Demonstrates real-world database interactions
+📊 Database Schema
+Tables
+users - User authentication and authorization
+user_id, username, password_hash (bcrypt), role, account_status
+activity_logs - Comprehensive activity logging
+activity_id, user_id, operation_type, table_name, access_timestamp
+operation_status, operation_details, ip_address
+is_suspicious, suspicious_reasons
+products - Sample data for CRUD operations
+product_id, product_name, category, price, stock_quantity
+security_alerts - Security alerts with severity
+alert_id, activity_id, severity, alert_message
+is_resolved, resolved_by
+Views
+vw_all_activities - All activities with user details
+vw_suspicious_activities - Filtered suspicious activities
+vw_user_activity_summary - Activity statistics per user
+🚀 Installation & Setup
+Prerequisites
+Python 3.8 or higher
+MySQL 8.0 or higher
+pip package manager
+Step 1: Database Setup
+bash
+# Login to MySQL
+mysql -u root -p
+
+# Create database and tables
+source schema.sql
+
+# Load sample data
+source seed_data.sql
+Step 2: Python Environment
+bash
+# Create virtual environment
+python -m venv venv
+
+# Activate virtual environment
+# Windows:
+venv\Scripts\activate
+# Linux/Mac:
+source venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+requirements.txt:
+
+Flask==2.3.2
+Flask-CORS==4.0.0
+mysql-connector-python==8.0.33
+Werkzeug==2.3.6
+Step 3: Configuration
+IMPORTANT - Security Best Practice:
+
+For production, use environment variables. Create a .env file:
+
+bash
+DB_HOST=localhost
+DB_USER=root
+DB_PASSWORD=your_secure_password
+DB_NAME=dam_system
+SECRET_KEY=your-secret-key-here
+Then update app.py:
+
+python
+from dotenv import load_dotenv
+load_dotenv()
+
+class Config:
+    DB_HOST = os.getenv('DB_HOST', 'localhost')
+    DB_USER = os.getenv('DB_USER', 'root')
+    DB_PASSWORD = os.getenv('DB_PASSWORD')  # NEVER hardcode in production
+    DB_NAME = os.getenv('DB_NAME', 'dam_system')
+    SECRET_KEY = os.getenv('SECRET_KEY')
+Step 4: Run the Application
+bash
+python app.py
+You should see:
+
+==================================================
+Database Activity Monitoring (DAM) System
+==================================================
+Database connected successfully!
+Server running on http://localhost:5000
+
+SECURITY FEATURES ENABLED:
+✓ SQL Injection Prevention (Parameterized Queries)
+✓ Password Hashing (bcrypt)
+✓ Role-Based Access Control (RBAC)
+✓ Brute Force Detection
+✓ Anomalous Timing Detection
+==================================================
+🧪 Testing Guide
+Test Credentials
+Role	Username	Password
+Admin	admin	admin123
+User	john_doe	user123
+Guest	guest_user	guest123
+Test Case 1: RBAC Violation (Guest Write Operation)
+bash
+# Login as guest
+curl -X POST http://localhost:5000/api/login \
+  -H "Content-Type: application/json" \
+  -d '{"username": "guest_user", "password": "guest123"}' \
+  -c cookies.txt
+
+# Attempt to create product (should fail with CRITICAL alert)
+curl -X POST http://localhost:5000/api/products \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Test", "category": "Test", "price": 99.99, "stock": 10}' \
+  -b cookies.txt
+
+# Check suspicious activities
+curl -X GET http://localhost:5000/api/activities/suspicious -b cookies.txt
+Expected Result:
+
+Operation fails with "Access Denied" error
+Activity logged with is_suspicious = TRUE
+Security alert created with severity = CRITICAL
+Test Case 2: Brute Force Detection
+python
+# Run this Python script to simulate brute force attack
+import requests
+
+url = "http://localhost:5000/api/login"
+
+# Attempt 6+ failed logins
+for i in range(7):
+    response = requests.post(url, json={
+        "username": "attacker",
+        "password": "wrong_password"
+    })
+    print(f"Attempt {i+1}: {response.status_code}")
+
+# Check for security alert
+import requests
+session = requests.Session()
+session.post(url, json={"username": "admin", "password": "admin123"})
+alerts = session.get("http://localhost:5000/api/activities/suspicious").json()
+print(alerts)
+Expected Result:
+
+6+ failed attempts logged
+Last attempt flagged as suspicious
+Alert severity = HIGH
+Alert message contains: "Brute Force Attack: X failed login attempts"
+Test Case 3: Anomalous Timing Detection
+Option A: Change system time (requires admin)
+
+bash
+# Set time to 8:00 AM or 7:00 PM
+sudo date -s "08:00:00"
+
+# Perform any operation
+curl -X GET http://localhost:5000/api/products -b cookies.txt
+Option B: Modify Config for testing
+
+python
+# In app.py, temporarily change:
+class Config:
+    WORKING_HOUR_START = 0   # Set to current hour
+    WORKING_HOUR_END = 0     # Set to current hour
+Expected Result:
+
+Operation logs successfully
+Activity flagged with is_suspicious = TRUE
+Alert severity = MEDIUM
+Reason: "Anomalous Timing: Access outside corporate hours"
+🔍 SQL Queries for Manual Verification
+View All Suspicious Activities
+sql
+SELECT * FROM vw_suspicious_activities 
+ORDER BY access_timestamp DESC;
+Check Security Alerts by Severity
+sql
+SELECT 
+    severity,
+    COUNT(*) as count,
+    GROUP_CONCAT(alert_message SEPARATOR '; ') as alerts
+FROM security_alerts
+GROUP BY severity
+ORDER BY FIELD(severity, 'Critical', 'High', 'Medium', 'Low');
+Find Brute Force Attempts
+sql
+SELECT 
+    operation_details,
+    COUNT(*) as failed_attempts,
+    MIN(access_timestamp) as first_attempt,
+    MAX(access_timestamp) as last_attempt
+FROM activity_logs
+WHERE operation_type = 'LOGIN' 
+  AND operation_status = 'Failed'
+GROUP BY operation_details
+HAVING COUNT(*) > 5;
+Activity Summary by User
+sql
+SELECT * FROM vw_user_activity_summary;
+🔒 Security Features Explained
+1. SQL Injection Prevention
+Bad (Vulnerable):
+
+python
+# NEVER DO THIS
+query = f"SELECT * FROM users WHERE username = '{username}'"
+cursor.execute(query)
+Good (Secure):
+
+python
+# ALWAYS USE PARAMETERIZED QUERIES
+query = "SELECT * FROM users WHERE username = %s"
+cursor.execute(query, (username,))
+Why? Parameterized queries ensure user input is treated as data, not executable code.
+
+2. Password Hashing
+Bad (Vulnerable):
+
+python
+# NEVER store plain text passwords
+password_hash = password
+Good (Secure):
+
+python
+from werkzeug.security import generate_password_hash, check_password_hash
+
+# Hash on creation
+password_hash = generate_password_hash(password)
+
+# Verify on login
+if check_password_hash(stored_hash, provided_password):
+    # Login successful
+Why? If the database is compromised, attackers cannot retrieve original passwords.
+
+3. Environment Variables
+Bad (Vulnerable):
+
+python
+DB_PASSWORD = 'mypassword123'  # Hardcoded in source code
+Good (Secure):
+
+python
+import os
+DB_PASSWORD = os.getenv('DB_PASSWORD')  # From environment variable
+Why? Prevents credentials from being committed to version control.
+
+📈 API Documentation
+Authentication
+Login
+http
+POST /api/login
+Content-Type: application/json
+
+{
+  "username": "admin",
+  "password": "admin123"
+}
+
+Response:
+{
+  "success": true,
+  "user": {
+    "user_id": 1,
+    "username": "admin",
+    "role": "Admin"
+  }
+}
+Logout
+http
+POST /api/logout
+
+Response:
+{"success": true}
+Product Operations (CRUD)
+Get All Products
+http
+GET /api/products
+
+Response:
+{
+  "success": true,
+  "products": [...]
+}
+Create Product (Admin/User only)
+http
+POST /api/products
+Content-Type: application/json
+
+{
+  "name": "New Product",
+  "category": "Electronics",
+  "price": 499.99,
+  "stock": 100
+}
+Update Product (Admin/User only)
+http
+PUT /api/products/{id}
+Content-Type: application/json
+
+{
+  "name": "Updated Product",
+  "category": "Electronics",
+  "price": 599.99,
+  "stock": 150
+}
+Delete Product (Admin/User only)
+http
+DELETE /api/products/{id}
+Monitoring
+Get All Activities
+http
+GET /api/activities
+Get Suspicious Activities
+http
+GET /api/activities/suspicious
+Get Alert Summary
+http
+GET /api/alerts/summary
+
+Response:
+{
+  "success": true,
+  "summary": {
+    "total_activities": 150,
+    "total_alerts": 12,
+    "critical_alerts": 3,
+    "high_alerts": 5,
+    "medium_alerts": 4,
+    "failed_operations": 8
+  }
+}
+🎓 Assignment Deliverables Checklist
+✅ MySQL Schema (schema.sql)
+
+CREATE TABLE scripts for all 4 tables
+Proper indexes and foreign keys
+Views for reporting
+✅ Sample Data (seed_data.sql)
+
+5 users (Admin, Users, Guest, Inactive)
+20 sample products
+Sample activity logs
+Sample security alerts
+✅ Python OOP Application (app.py)
+
+5 well-designed classes with clear responsibilities
+Proper encapsulation and methods
+SQL injection prevention (parameterized queries)
+Password hashing (bcrypt via Werkzeug)
+✅ Security Rules (All 3 implemented)
+
+RBAC: Guest write restriction (CRITICAL severity)
+Brute Force: >5 failed attempts detection (HIGH severity)
+Anomalous Timing: Outside 9-18 hours (MEDIUM severity)
+✅ Activity Logging
+
+All operations logged (SELECT, INSERT, UPDATE, DELETE, LOGIN, LOGOUT)
+Tracks: Who, What, When, Status, IP Address
+✅ Suspicious Activity Detection
+
+Real-time detection using Python logic
+SQL queries for pattern analysis
+Automatic alert creation with severity levels
+✅ Reports & Alerts
+
+All activities report (API + SQL view)
+Suspicious activities report
+Alert summary with statistics
+Console output for debugging
+✅ Documentation (This README)
+
+Installation guide
+Security rules explanation
+Testing procedures
+API documentation
+🚨 Important Security Notes
+For Production Deployment:
+NEVER commit sensitive data to Git:
+Add .env to .gitignore
+Use environment variables for all credentials
+Use HTTPS:
+Deploy with SSL/TLS certificates
+Force HTTPS redirects
+Database Security:
+Create a dedicated database user (not root)
+Grant minimum required privileges
+Use strong passwords (16+ characters)
+Rate Limiting:
+Implement Flask-Limiter for API endpoints
+Prevent DoS attacks
+Logging:
+Never log sensitive data (passwords, tokens)
+Implement log rotation
+Monitor logs for suspicious patterns
+Session Management:
+Use secure session cookies
+Implement session timeout
+Regenerate session IDs after login
+📞 Support & Troubleshooting
+Common Issues
+Issue: "Can't connect to MySQL server" Solution:
+
+bash
+# Check if MySQL is running
+sudo service mysql status
+
+# Start MySQL if needed
+sudo service mysql start
+
+# Verify credentials in Config class
+Issue: "Access denied for user" Solution:
+
+sql
+-- Create dedicated user
+CREATE USER 'dam_user'@'localhost' IDENTIFIED BY 'secure_password';
+GRANT ALL PRIVILEGES ON dam_system.* TO 'dam_user'@'localhost';
+FLUSH PRIVILEGES;
+Issue: "Module not found" Solution:
+
+bash
+# Make sure virtual environment is activated
+source venv/bin/activate  # Linux/Mac
+venv\Scripts\activate     # Windows
+
+# Reinstall dependencies
+pip install -r requirements.txt
+📝 License
+Educational Project - Database Activity Monitoring System
+
+👤 Author
+Created as part of Database Security Assignment - MySQL + Python OOP Implementation
+
+Key Features:
+
+Enterprise-grade security monitoring
+Real-time threat detection
+Comprehensive activity logging
+Role-based access control
+Automated alert system
