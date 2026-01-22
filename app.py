@@ -18,6 +18,7 @@ from mysql.connector import Error
 from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
 import os
+import pytz
 from functools import wraps
 
 # =====================================================
@@ -98,6 +99,9 @@ class DatabaseConnection:
 # =====================================================
 # USER MANAGEMENT CLASS
 # =====================================================
+def get_india_time():
+    india = pytz.timezone("Asia/Kolkata")
+    return datetime.now(india)
 
 class UserManager:
     """Manages user operations and authentication with security best practices"""
@@ -601,8 +605,9 @@ class ProductManager:
 # =====================================================
 
 app = Flask(__name__)
-app.config.from_object(Config)
+app.secret_key = Config.SECRET_KEY
 CORS(app)
+
 
 # Initialize components
 config = Config()
@@ -616,14 +621,16 @@ product_manager = ProductManager(db_connection)
 # DECORATORS
 # =====================================================
 
+from flask import redirect, url_for
+
 def login_required(f):
-    """Decorator to require login"""
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if 'user_id' not in session:
-            return jsonify({'error': 'Authentication required'}), 401
+            return redirect(url_for('login_page'))
         return f(*args, **kwargs)
     return decorated_function
+
 
 def admin_required(f):
     """Decorator to require admin role"""
@@ -636,6 +643,58 @@ def admin_required(f):
             return jsonify({'error': 'Admin access required'}), 403
         return f(*args, **kwargs)
     return decorated_function
+@app.route("/")
+def login_page():
+    return render_template("login.html")
+
+
+@app.route("/login", methods=["POST"])
+def login_form():
+    username = request.form.get("username")
+    password = request.form.get("password")
+
+    user = user_manager.authenticate(username, password)
+
+    if not user:
+        return render_template("login.html", error="Invalid credentials")
+
+    session["user_id"] = user["user_id"]
+    session["username"] = user["username"]
+    session["role"] = user["role"]
+
+    activity_id = activity_logger.log_activity(
+        user["user_id"], "LOGIN", "users", "Success",
+        f"User {username} logged in via web", request.remote_addr
+    )
+    detector.check_activity(activity_id)
+
+    return redirect("/dashboard")
+
+
+@app.route('/dashboard')
+@login_required
+def dashboard():
+    users = user_manager.get_all_users()
+    products = product_manager.get_all_products()
+    activities = activity_logger.get_all_activities()
+    suspicious = activity_logger.get_suspicious_activities()
+
+    return render_template(
+        'dashboard.html',
+        username=session['username'],
+        role=session['role'],
+        users=users,
+        products=products,
+        activities=activities,
+        suspicious=suspicious
+    )
+
+
+
+@app.route("/logout")
+def logout_page():
+    session.clear()
+    return redirect("/")
 
 # =====================================================
 # AUTHENTICATION ROUTES
@@ -863,6 +922,37 @@ def delete_product(product_id):
 # =====================================================
 # MONITORING & REPORTING ROUTES
 # =====================================================
+@app.route('/api/dashboard', methods=['GET'])
+@login_required
+def dashboard_data():
+    user = user_manager.get_user_by_id(session['user_id'])
+
+    # Indian time (you already added pytz + helper)
+    now = get_india_time()
+    within_hours = (
+        Config.WORKING_HOUR_START <= now.hour < Config.WORKING_HOUR_END
+    )
+
+    data = {
+        "user": {
+            "user_id": user['user_id'],
+            "username": user['username'],
+            "role": user['role']
+        },
+        "current_time": now.strftime("%H:%M:%S"),
+        "within_hours": within_hours
+    }
+
+    # Products → everyone can see
+    data["products"] = product_manager.get_all_products()
+
+    # Admin only data
+    if user['role'] == 'Admin':
+        data["activities"] = activity_logger.get_all_activities()
+        data["suspicious"] = activity_logger.get_suspicious_activities()
+
+    return jsonify(data)
+
 
 @app.route('/api/activities', methods=['GET'])
 @login_required

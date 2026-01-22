@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>DAM Dashboard</title>
+    <style>
+        body {
+            font-family: Arial;
+            margin: 20px;
+        }
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+        .time-good {
+            color: blue;
+            font-weight: bold;
+        }
+        .time-bad {
+            color: red;
+            font-weight: bold;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+        }
+        th, td {
+            border: 1px solid #ccc;
+            padding: 8px;
+        }
+        th {
+            background: #f0f0f0;
+        }
+        button {
+            padding: 5px 10px;
+        }
+        .warning {
+            background: #ffe0e0;
+            padding: 10px;
+            border: 1px solid red;
+            margin-bottom: 20px;
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="top-bar">
+    <div>
+        Logged in as: <b id="username"></b> (<span id="role"></span>)
+    </div>
+    <div id="timeBox"></div>
+</div>
+
+<div id="warningBox" class="warning">
+    ⚠️ Suspicious activity detected. Admin has been notified.
+</div>
+
+<h2>Products</h2>
+<table id="productTable">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Category</th>
+            <th>Price</th>
+            <th>Stock</th>
+            <th id="actionHeader">Actions</th>
+        </tr>
+    </thead>
+    <tbody></tbody>
+</table>
+
+<div id="adminSection" style="display:none;">
+    <h2>All Activities</h2>
+    <table id="activityTable">
+        <thead>
+            <tr>
+                <th>User</th>
+                <th>Operation</th>
+                <th>Status</th>
+                <th>Time</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+
+    <h2>Suspicious Activities</h2>
+    <table id="suspiciousTable">
+        <thead>
+            <tr>
+                <th>User</th>
+                <th>Reason</th>
+                <th>Severity</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+</div>
+
+<script>
+fetch("/api/dashboard")
+.then(res => res.json())
+.then(data => {
+
+    // User info
+    document.getElementById("username").innerText = data.user.username;
+    document.getElementById("role").innerText = data.user.role;
+
+    // Time display
+    let timeBox = document.getElementById("timeBox");
+    timeBox.innerText = data.current_time;
+    timeBox.className = data.within_hours ? "time-good" : "time-bad";
+
+    // Products
+    let tbody = document.querySelector("#productTable tbody");
+    tbody.innerHTML = "";
+
+    data.products.forEach(p => {
+        let row = document.createElement("tr");
+        row.innerHTML = `
+            <td>${p.product_name}</td>
+            <td>${p.category}</td>
+            <td>${p.price}</td>
+            <td>${p.stock_quantity}</td>
+            <td>
+                ${data.user.role !== 'Guest' ? `
+                    <button onclick="editProduct(${p.product_id})">Edit</button>
+                    <button onclick="deleteProduct(${p.product_id})">Delete</button>
+                ` : ''}
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+
+    // Hide actions for Guest
+    if (data.user.role === 'Guest') {
+        document.getElementById("actionHeader").style.display = "none";
+    }
+
+    // Admin section
+    if (data.user.role === 'Admin') {
+        document.getElementById("adminSection").style.display = "block";
+
+        let atbody = document.querySelector("#activityTable tbody");
+        data.activities.forEach(a => {
+            let r = document.createElement("tr");
+            r.innerHTML = `
+                <td>${a.username || 'Unknown'}</td>
+                <td>${a.operation_type}</td>
+                <td>${a.operation_status}</td>
+                <td>${a.access_timestamp}</td>
+            `;
+            atbody.appendChild(r);
+        });
+
+        let sbody = document.querySelector("#suspiciousTable tbody");
+        data.suspicious.forEach(s => {
+            let r = document.createElement("tr");
+            r.innerHTML = `
+                <td>${s.username}</td>
+                <td>${s.suspicious_reasons}</td>
+                <td>${s.severity}</td>
+            `;
+            sbody.appendChild(r);
+        });
+    }
+
+    // Suspicious popup for user
+    if (!data.within_hours && data.user.role !== 'Admin') {
+        document.getElementById("warningBox").style.display = "block";
+    }
+});
+
+function editProduct(id) {
+    alert("Edit product " + id + " (API already exists in backend)");
+}
+
+function deleteProduct(id) {
+    alert("Delete product " + id + " (API already exists in backend)");
+}
+</script>
+
+</body>
+</html>
