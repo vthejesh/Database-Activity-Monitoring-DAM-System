@@ -29,7 +29,7 @@ CREATE TABLE users (
 -- =====================================================
 CREATE TABLE activity_logs (
     activity_id INT PRIMARY KEY AUTO_INCREMENT,
-    user_id INT NOT NULL,
+    user_id INT NULL,
     operation_type ENUM('SELECT', 'INSERT', 'UPDATE', 'DELETE', 'LOGIN', 'LOGOUT') NOT NULL,
     table_name VARCHAR(50) NOT NULL,
     access_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

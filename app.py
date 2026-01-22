@@ -25,17 +25,11 @@ from functools import wraps
 # =====================================================
 
 class Config:
-    """Configuration class for database and app settings"""
-    
-    # MySQL Database Configuration - USE ENVIRONMENT VARIABLES IN PRODUCTION
-   
-    """Configuration class for database and app settings"""
-
-    # MySQL Database Configuration
     DB_HOST = 'localhost'
-    DB_USER = 'dam_user'
-    DB_PASSWORD = 'Dam@123'
+    DB_USER = 'root'
+    DB_PASSWORD = '1234'
     DB_NAME = 'dam_system'
+
 
     # Flask Configuration
     SECRET_KEY = 'your-secret-key-change-this'

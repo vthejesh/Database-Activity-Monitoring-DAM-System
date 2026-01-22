@@ -12,25 +12,18 @@ USE dam_system;
 -- To generate your own hashed passwords, run:
 -- python -c "from werkzeug.security import generate_password_hash; print(generate_password_hash('your_password'))"
 
--- Admin User (username: admin, password: admin123)
-INSERT INTO users (username, password_hash, role, account_status) VALUES
-('admin', 'scrypt:32768:8:1$YQ8ZGxHKvj6DX9Mc$8f2e7c1d4b5a6e8f9c0d1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e', 'Admin', 'Active');
 
--- Regular User (username: john_doe, password: user123)
 INSERT INTO users (username, password_hash, role, account_status) VALUES
-('john_doe', 'scrypt:32768:8:1$XP7YFwGJui5CW8Lb$7e1f6c0d3b4a5e7f8c9d0a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e', 'User', 'Active');
+('admin', 'scrypt:32768:8:1$cJxzSVQj2xhfzJvz$01809c44f546d83060edc74959b3398a7264baab8be1f16a0cf5ee3d41f8ec47c5a42c407a99b8f1ca72d752183845a998fb5fed80c33e8f334d9a621f42e799', 'Admin', 'Active');
 
--- Another Regular User (username: jane_smith, password: user456)
 INSERT INTO users (username, password_hash, role, account_status) VALUES
-('jane_smith', 'scrypt:32768:8:1$WO6XEvFIth4BV7Ka$6d0e5b9c2a3d4e6f7c8d9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e', 'User', 'Active');
+('john_doe', 'scrypt:32768:8:1$q5uws5zEDIzoXD6M$380de2d44e6cca3755d1f9af4edb28f9833f3b526d9720c29133c2408215414017d787d5e0f66e2988f3a8affe67c1a249a6e78aa1dc1fabbda6d82c0525e336', 'User', 'Active');
 
--- Guest User (username: guest_user, password: guest123)
 INSERT INTO users (username, password_hash, role, account_status) VALUES
-('guest_user', 'scrypt:32768:8:1$VN5WDuEHsg3AU6Jz$5c9d4b8c1a2d3e5f6c7d8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e', 'Guest', 'Active');
+('jane_smith', 'scrypt:32768:8:1$oK9f6OAndKvaSuVT$13ff43a64b2661d0effcfa5dd4f27104a278565b9081f002df21ae35f60c899c4d0d23b162d2bbf0510a270e8a648094f8faef13acb15ea0341e94cd720d1f44', 'User', 'Active');
 
--- Inactive User (for testing account status)
 INSERT INTO users (username, password_hash, role, account_status) VALUES
-('inactive_user', 'scrypt:32768:8:1$UM4VCuDGrf2ZT5Iy$4b8c3a7d2e4f5c6d7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a', 'User', 'Inactive');
+('guest_user', 'scrypt:32768:8:1$HoJV8zsfhVg1TR2P$b98e5dbeed6301bf0e86a2477bb47ee929f21f28fe3499582a6034e1db1000a505e305cf2d274e6fbd6db935260038cfd3eb540303917e80cfb99ebdf91a1c8a', 'Guest', 'Active');
 
 -- =====================================================
 -- SAMPLE PRODUCTS
@@ -95,12 +88,12 @@ INSERT INTO activity_logs (user_id, operation_type, table_name, operation_status
 
 -- Failed login attempts (for brute force detection testing)
 INSERT INTO activity_logs (user_id, operation_type, table_name, operation_status, operation_details, ip_address) VALUES
-(0, 'LOGIN', 'users', 'Failed', 'Attempted username: hacker. Invalid credentials', '192.168.1.200'),
-(0, 'LOGIN', 'users', 'Failed', 'Attempted username: hacker. Invalid credentials', '192.168.1.200'),
-(0, 'LOGIN', 'users', 'Failed', 'Attempted username: hacker. Invalid credentials', '192.168.1.200'),
-(0, 'LOGIN', 'users', 'Failed', 'Attempted username: hacker. Invalid credentials', '192.168.1.200'),
-(0, 'LOGIN', 'users', 'Failed', 'Attempted username: hacker. Invalid credentials', '192.168.1.200'),
-(0, 'LOGIN', 'users', 'Failed', 'Attempted username: hacker. Invalid credentials', '192.168.1.200');
+(NULL, 'LOGIN', 'users', 'Failed', 'Attempted username: hacker. Invalid credentials', '192.168.1.200'),
+(NULL, 'LOGIN', 'users', 'Failed', 'Attempted username: hacker. Invalid credentials', '192.168.1.200'),
+(NULL, 'LOGIN', 'users', 'Failed', 'Attempted username: hacker. Invalid credentials', '192.168.1.200'),
+(NULL, 'LOGIN', 'users', 'Failed', 'Attempted username: hacker. Invalid credentials', '192.168.1.200'),
+(NULL, 'LOGIN', 'users', 'Failed', 'Attempted username: hacker. Invalid credentials', '192.168.1.200'),
+(NULL, 'LOGIN', 'users', 'Failed', 'Attempted username: hacker. Invalid credentials', '192.168.1.200');
 
 -- Mark the 6th failed login as suspicious (brute force)
 UPDATE activity_logs 
@@ -129,8 +122,14 @@ INSERT INTO security_alerts (activity_id, alert_type, severity, alert_message) V
 (6, 'Suspicious Activity', 'Critical', 'RBAC Violation: Guest user attempting write operation (DML)');
 
 -- Alert for Brute Force
-INSERT INTO security_alerts (activity_id, alert_type, severity, alert_message) VALUES
-(12, 'Suspicious Activity', 'High', 'Brute Force Attack: 6 failed login attempts for username "hacker"');
+INSERT INTO security_alerts (activity_id, alert_type, severity, alert_message)
+SELECT activity_id, 'Suspicious Activity', 'High',
+       'Brute Force Attack: 6 failed login attempts for username "hacker"'
+FROM activity_logs
+WHERE is_suspicious = TRUE
+ORDER BY activity_id DESC
+LIMIT 1;
+
 
 -- =====================================================
 -- VERIFICATION QUERIES
