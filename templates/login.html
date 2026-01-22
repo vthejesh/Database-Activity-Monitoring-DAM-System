@@ -1,21 +1,100 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>DAM Login</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DAM System | Secure Login</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f0f2f5;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .login-card {
+            width: 100%;
+            max-width: 400px;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            background: white;
+        }
+        .system-logo {
+            font-size: 2rem;
+            color: #0d6efd;
+            margin-bottom: 1rem;
+        }
+    </style>
 </head>
 <body>
 
-<h2>DAM System Login</h2>
+    <div class="login-card">
+        <div class="text-center mb-4">
+            <div class="system-logo"><i class="bi bi-shield-lock"></i> DAM System</div>
+            <h5 class="text-muted">Database Activity Monitoring</h5>
+        </div>
 
-{% if error %}
-<p style="color:red">{{ error }}</p>
-{% endif %}
+        <div id="alertBox" class="alert alert-danger d-none" role="alert"></div>
 
-<form method="POST" action="/login">
-    <input name="username" placeholder="Username" required><br><br>
-    <input name="password" type="password" placeholder="Password" required><br><br>
-    <button type="submit">Login</button>
-</form>
+        <form id="loginForm">
+            <div class="mb-3">
+                <label for="username" class="form-label">Username</label>
+                <input type="text" class="form-control" id="username" required>
+            </div>
+            <div class="mb-3">
+                <label for="password" class="form-label">Password</label>
+                <input type="password" class="form-control" id="password" required>
+            </div>
+            <div class="mb-3 form-check">
+                <input type="checkbox" class="form-check-input" id="isGuest">
+                <label class="form-check-label" for="isGuest">Login as Guest (Read-Only)</label>
+            </div>
+            <button type="submit" class="btn btn-primary w-100">Secure Login</button>
+        </form>
+        
+        <div class="mt-3 text-center text-muted">
+            <small>Protected by Brute Force Detection</small>
+        </div>
+    </div>
 
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const isGuest = document.getElementById('isGuest').checked;
+            const alertBox = document.getElementById('alertBox');
+
+            // Payload based on guest check
+            const payload = isGuest 
+                ? { is_guest: true } 
+                : { username: username, password: password };
+
+            try {
+                const response = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    // Redirect to dashboard on success
+                    window.location.href = '/dashboard';
+                } else {
+                    // Show error message
+                    alertBox.textContent = data.error || "Login Failed";
+                    alertBox.classList.remove('d-none');
+                }
+            } catch (error) {
+                alertBox.textContent = "Server Connection Error";
+                alertBox.classList.remove('d-none');
+            }
+        });
+    </script>
 </body>
 </html>

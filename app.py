@@ -212,40 +212,38 @@ class ActivityLogger:
     def __init__(self, db_connection):
         self.db = db_connection
     
-    def log_activity(self, user_id, operation_type, table_name, 
-                    operation_status, operation_details='', ip_address=None, username=None):
-        """
-        Log a database activity
-        SECURITY: Logs even failed attempts with attempted username for brute-force detection
-        
-        Args:
-            user_id: User ID (0 for failed login attempts)
-            operation_type: SELECT, INSERT, UPDATE, DELETE, LOGIN, LOGOUT
-            table_name: Target table name
-            operation_status: Success or Failed
-            operation_details: Additional details
-            ip_address: Client IP address
-            username: Username (for failed login tracking)
-        """
+    def log_activity(self, user_id, operation_type, table_name, operation_status, operation_details='', ip_address=None):
+        """Logs database activity with localized India Time"""
         cursor = self.db.get_cursor()
         try:
+            # 1. Generate the correct India Time right now
+            india_now = get_india_time() 
+
+            # 2. The SQL query (Notice we added access_timestamp)
             query = """
                 INSERT INTO activity_logs 
                 (user_id, operation_type, table_name, operation_status, 
-                 operation_details, ip_address)
-                VALUES (%s, %s, %s, %s, %s, %s)
+                 operation_details, ip_address, access_timestamp)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
             """
-            # For failed logins, include attempted username in details
-            if operation_status == 'Failed' and username:
-                operation_details = f"Attempted username: {username}. {operation_details}"
             
-            cursor.execute(query, (user_id, operation_type, table_name, 
-                                 operation_status, operation_details, ip_address))
+            # 3. Execute with the india_now variable at the end
+            cursor.execute(query, (
+                user_id, 
+                operation_type, 
+                table_name, 
+                operation_status, 
+                operation_details, 
+                ip_address, 
+                india_now
+            ))
+            
             self.db.commit()
             return cursor.lastrowid
-        except Error as e:
-            self.db.rollback()
-            print(f"Error logging activity: {e}")
+        except Exception as e:
+            if self.db.connection:
+                self.db.connection.rollback()
+            print(f"Logging Error: {e}")
             return None
         finally:
             cursor.close()
@@ -541,6 +539,25 @@ class ProductManager:
         finally:
             cursor.close()
     
+    def add_product(self, name, category, price, stock):
+        cursor = self.db.get_cursor()
+        try:
+            # Ensure your table column names match exactly: 
+            # product_name, category, price, stock_quantity
+            query = """
+                INSERT INTO products (product_name, category, price, stock_quantity)
+                VALUES (%s, %s, %s, %s)
+            """
+            cursor.execute(query, (name, category, price, stock))
+            self.db.commit()
+            return True
+        except Exception as e:
+            print(f"Error adding product: {e}")
+            self.db.rollback()
+            return False
+        finally:
+            cursor.close()
+    
     def get_product_by_id(self, product_id):
         """Get product by ID - SECURITY: Parameterized query"""
         cursor = self.db.get_cursor()
@@ -794,39 +811,45 @@ def get_products():
 @login_required
 def create_product():
     """Create new product - RBAC enforced"""
-    user_id = session['user_id']
-    user_role = session['role']
+    user_id = session.get('user_id')
+    user_role = session.get('role')
     data = request.json
     
-    # SECURITY: Enforce RBAC - Guests cannot perform write operations
+    # 1. SECURITY: Check if user is Guest
     if user_role == 'Guest':
         activity_id = activity_logger.log_activity(
             user_id, 'INSERT', 'products', 'Failed',
-            'RBAC Violation: Guest user attempted unauthorized INSERT operation', 
+            'RBAC Violation: Guest user attempted unauthorized INSERT', 
             request.remote_addr
         )
         detector.check_activity(activity_id)
         return jsonify({'success': False, 'error': 'Access Denied: Guests cannot insert data'}), 403
     
     try:
-        product_id = product_manager.create_product(
-            data['name'], data['category'], 
-            data['price'], data['stock']
+        # 2. Call the manager (Ensure these keys match your HTML: name, category, price, stock)
+        product_id = product_manager.add_product(
+            data['name'], 
+            data['category'], 
+            data['price'], 
+            data['stock']
         )
         
-        # Log successful insert
-        activity_id = activity_logger.log_activity(
-            user_id, 'INSERT', 'products', 'Success',
-            f"Created product: {data['name']} (ID: {product_id})", request.remote_addr
-        )
-        detector.check_activity(activity_id)
-        
-        return jsonify({'success': True, 'product_id': product_id})
+        if product_id:
+            # 3. Log success
+            activity_id = activity_logger.log_activity(
+                user_id, 'INSERT', 'products', 'Success',
+                f"Created product: {data['name']}", request.remote_addr
+            )
+            detector.check_activity(activity_id)
+            return jsonify({'success': True, 'product_id': product_id})
+        else:
+            raise Exception("Database failed to return product ID")
+
     except Exception as e:
-        # Log failed operation
+        # 4. Log failed operation (e.g., database error)
         activity_id = activity_logger.log_activity(
             user_id, 'INSERT', 'products', 'Failed',
-            str(e), request.remote_addr
+            f"Error: {str(e)}", request.remote_addr
         )
         detector.check_activity(activity_id)
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -998,6 +1021,14 @@ def get_alert_summary():
         })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/products/latest', methods=['GET'])
+@login_required
+def get_latest_products():
+    products = product_manager.get_all_products()
+    return jsonify({'products': products})
+
+
 
 # =====================================================
 # MAIN

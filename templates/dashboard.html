@@ -1,186 +1,267 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>DAM Dashboard</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DAM Dashboard | Secure Monitoring</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body {
-            font-family: Arial;
-            margin: 20px;
+        body { background-color: #f8f9fa; }
+        .log-terminal {
+            background-color: #1e1e1e;
+            color: #00ff00;
+            font-family: 'Courier New', monospace;
+            height: 400px;
+            overflow-y: auto;
+            padding: 15px;
+            border-radius: 5px;
+            font-size: 0.85rem;
+            border: 2px solid #333;
         }
-        .top-bar {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 20px;
-        }
-        .time-good {
-            color: blue;
-            font-weight: bold;
-        }
-        .time-bad {
-            color: red;
-            font-weight: bold;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 30px;
-        }
-        th, td {
-            border: 1px solid #ccc;
-            padding: 8px;
-        }
-        th {
-            background: #f0f0f0;
-        }
-        button {
-            padding: 5px 10px;
-        }
-        .warning {
-            background: #ffe0e0;
-            padding: 10px;
-            border: 1px solid red;
-            margin-bottom: 20px;
-            display: none;
-        }
+        .stat-card { border: none; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .table-card { border-radius: 10px; overflow: hidden; }
     </style>
 </head>
-
 <body>
 
-<div class="top-bar">
-    <div>
-        Logged in as: <b id="username"></b> (<span id="role"></span>)
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#"><i class="bi bi-shield-lock-fill text-primary"></i> DAM SYSTEM</a>
+            <div class="d-flex align-items-center text-white">
+                <span class="me-3">
+                    <i class="bi bi-person-circle"></i> <span id="navUsername">User</span> 
+                    <span class="badge bg-primary ms-1" id="navRole">Role</span>
+                </span>
+                <button onclick="logout()" class="btn btn-outline-danger btn-sm">Logout</button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid py-4">
+        
+        <div id="adminSection" class="row mb-4 d-none">
+            <div class="col-md-3">
+                <div class="card stat-card bg-white p-3 text-center">
+                    <h6 class="text-muted">Total Activities</h6>
+                    <h2 id="totalActivities" class="text-primary">0</h2>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stat-card bg-white p-3 text-center">
+                    <h6 class="text-muted">Security Alerts</h6>
+                    <h2 id="totalAlerts" class="text-danger">0</h2>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stat-card bg-white p-3 text-center">
+                    <h6 class="text-muted">Failed Operations</h6>
+                    <h2 id="failedOps" class="text-warning">0</h2>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stat-card bg-white p-2">
+                    <canvas id="alertChart" style="max-height: 80px;"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-lg-7">
+                <div class="card table-card shadow-sm mb-4">
+                    <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0 fw-bold">Database Inventory</h5>
+                        <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#productModal">
+                            <i class="bi bi-plus-circle"></i> Add New Product
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Product Name</th>
+                                    <th>Category</th>
+                                    <th>Price</th>
+                                    <th>Stock</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="productTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-5">
+                <div class="card shadow-sm border-0">
+                    <div class="card-header bg-dark text-white d-flex justify-content-between">
+                        <span><i class="bi bi-broadcast"></i> Live Activity Monitoring</span>
+                        <small id="lastRefreshed">Syncing...</small>
+                    </div>
+                    <div id="activityFeed" class="log-terminal">
+                        <div class="text-muted">Waiting for system logs...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
-    <div id="timeBox"></div>
-</div>
 
-<div id="warningBox" class="warning">
-    ⚠️ Suspicious activity detected. Admin has been notified.
-</div>
+    <div class="modal fade" id="productModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add Database Record</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Product Name</label>
+                        <input type="text" class="form-control" id="pName" placeholder="e.g. Laptop">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Category</label>
+                        <input type="text" class="form-control" id="pCategory" placeholder="e.g. Electronics">
+                    </div>
+                    <div class="row">
+                        <div class="col-6 mb-3">
+                            <label class="form-label">Price ($)</label>
+                            <input type="number" step="0.01" class="form-control" id="pPrice">
+                        </div>
+                        <div class="col-6 mb-3">
+                            <label class="form-label">Quantity</label>
+                            <input type="number" class="form-control" id="pStock">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="submitProduct()">Insert to DB</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
-<h2>Products</h2>
-<table id="productTable">
-    <thead>
-        <tr>
-            <th>Name</th>
-            <th>Category</th>
-            <th>Price</th>
-            <th>Stock</th>
-            <th id="actionHeader">Actions</th>
-        </tr>
-    </thead>
-    <tbody></tbody>
-</table>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let currentUser = null;
+        let alertChart = null;
 
-<div id="adminSection" style="display:none;">
-    <h2>All Activities</h2>
-    <table id="activityTable">
-        <thead>
-            <tr>
-                <th>User</th>
-                <th>Operation</th>
-                <th>Status</th>
-                <th>Time</th>
-            </tr>
-        </thead>
-        <tbody></tbody>
-    </table>
-
-    <h2>Suspicious Activities</h2>
-    <table id="suspiciousTable">
-        <thead>
-            <tr>
-                <th>User</th>
-                <th>Reason</th>
-                <th>Severity</th>
-            </tr>
-        </thead>
-        <tbody></tbody>
-    </table>
-</div>
-
-<script>
-fetch("/api/dashboard")
-.then(res => res.json())
-.then(data => {
-
-    // User info
-    document.getElementById("username").innerText = data.user.username;
-    document.getElementById("role").innerText = data.user.role;
-
-    // Time display
-    let timeBox = document.getElementById("timeBox");
-    timeBox.innerText = data.current_time;
-    timeBox.className = data.within_hours ? "time-good" : "time-bad";
-
-    // Products
-    let tbody = document.querySelector("#productTable tbody");
-    tbody.innerHTML = "";
-
-    data.products.forEach(p => {
-        let row = document.createElement("tr");
-        row.innerHTML = `
-            <td>${p.product_name}</td>
-            <td>${p.category}</td>
-            <td>${p.price}</td>
-            <td>${p.stock_quantity}</td>
-            <td>
-                ${data.user.role !== 'Guest' ? `
-                    <button onclick="editProduct(${p.product_id})">Edit</button>
-                    <button onclick="deleteProduct(${p.product_id})">Delete</button>
-                ` : ''}
-            </td>
-        `;
-        tbody.appendChild(row);
-    });
-
-    // Hide actions for Guest
-    if (data.user.role === 'Guest') {
-        document.getElementById("actionHeader").style.display = "none";
-    }
-
-    // Admin section
-    if (data.user.role === 'Admin') {
-        document.getElementById("adminSection").style.display = "block";
-
-        let atbody = document.querySelector("#activityTable tbody");
-        data.activities.forEach(a => {
-            let r = document.createElement("tr");
-            r.innerHTML = `
-                <td>${a.username || 'Unknown'}</td>
-                <td>${a.operation_type}</td>
-                <td>${a.operation_status}</td>
-                <td>${a.access_timestamp}</td>
-            `;
-            atbody.appendChild(r);
+        document.addEventListener('DOMContentLoaded', () => {
+            initDashboard();
+            setInterval(updateMonitoring, 3000); // 3-second live refresh
         });
 
-        let sbody = document.querySelector("#suspiciousTable tbody");
-        data.suspicious.forEach(s => {
-            let r = document.createElement("tr");
-            r.innerHTML = `
-                <td>${s.username}</td>
-                <td>${s.suspicious_reasons}</td>
-                <td>${s.severity}</td>
-            `;
-            sbody.appendChild(r);
-        });
-    }
+        async function initDashboard() {
+            try {
+                const res = await fetch('/api/dashboard');
+                if (res.status === 401) window.location.href = '/';
+                const data = await res.json();
+                
+                currentUser = data.user;
+                document.getElementById('navUsername').innerText = currentUser.username;
+                document.getElementById('navRole').innerText = currentUser.role;
 
-    // Suspicious popup for user
-    if (!data.within_hours && data.user.role !== 'Admin') {
-        document.getElementById("warningBox").style.display = "block";
-    }
-});
+                if (currentUser.role === 'Admin') {
+                    document.getElementById('adminSection').classList.remove('d-none');
+                }
+                renderProducts(data.products);
+                updateMonitoring();
+            } catch (err) { console.error("Init failed", err); }
+        }
 
-function editProduct(id) {
-    alert("Edit product " + id + " (API already exists in backend)");
-}
+        function renderProducts(products) {
+            const tbody = document.getElementById('productTableBody');
+            tbody.innerHTML = products.map(p => `
+                <tr>
+                    <td>#${p.product_id}</td>
+                    <td><b>${p.product_name}</b></td>
+                    <td><span class="badge bg-light text-dark border">${p.category}</span></td>
+                    <td>$${p.price}</td>
+                    <td>${p.stock_quantity}</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteProduct(${p.product_id})">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
 
-function deleteProduct(id) {
-    alert("Delete product " + id + " (API already exists in backend)");
-}
-</script>
+        async function submitProduct() {
+            const payload = {
+                name: document.getElementById('pName').value,
+                category: document.getElementById('pCategory').value,
+                price: parseFloat(document.getElementById('pPrice').value),
+                stock: parseInt(document.getElementById('pStock').value)
+            };
 
+            if (!payload.name || isNaN(payload.price)) {
+                alert("Please fill all fields correctly.");
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/products', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const result = await res.json();
+                if (result.success) {
+                    location.reload();
+                } else {
+                    alert("Error: " + result.error);
+                }
+            } catch (err) { alert("Connection failed"); }
+        }
+
+        async function deleteProduct(id) {
+            if (!confirm("Delete this record?")) return;
+            const res = await fetch(`/api/products/${id}`, { method: 'DELETE' });
+            const data = await res.json();
+            if (data.success) location.reload();
+            else alert(data.error);
+        }
+
+        async function updateMonitoring() {
+            if (!currentUser || currentUser.role !== 'Admin') return;
+            
+            // Update Summary Stats
+            const sumRes = await fetch('/api/alerts/summary');
+            const sumData = await sumRes.json();
+            if (sumData.success) {
+                const s = sumData.summary;
+                document.getElementById('totalActivities').innerText = s.total_activities;
+                document.getElementById('totalAlerts').innerText = s.total_alerts;
+                document.getElementById('failedOps').innerText = s.failed_operations;
+                document.getElementById('lastRefreshed').innerText = "Last update: " + new Date().toLocaleTimeString();
+            }
+
+            // Update Log Terminal
+            const logRes = await fetch('/api/activities');
+            const logData = await logRes.json();
+            if (logData.success) {
+                const feed = document.getElementById('activityFeed');
+                feed.innerHTML = logData.activities.map(log => {
+                    const statusColor = log.operation_status === 'Success' ? '#00ff00' : '#ff4444';
+                    const alertStyle = log.is_suspicious ? 'border: 1px solid #ff4444; background: #321;' : '';
+                    return `
+                        <div class="mb-2 p-1" style="${alertStyle}">
+                            <span style="color: #888;">[${log.access_timestamp}]</span> 
+                            <span style="color: ${statusColor}">${log.operation_type}</span> 
+                            <b>${log.username}</b>: ${log.operation_details}
+                        </div>
+                    `;
+                }).join('');
+            }
+        }
+
+        async function logout() {
+            await fetch('/api/logout', { method: 'POST' });
+            window.location.href = '/';
+        }
+    </script>
 </body>
 </html>
