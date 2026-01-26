@@ -925,6 +925,7 @@ def delete_product(product_id):
                 user_id, 'DELETE', 'products', 'Success',
                 f"Deleted product ID: {product_id}", request.remote_addr
             )
+            #thi
             detector.check_activity(activity_id)
             return jsonify({'success': True})
         else:
