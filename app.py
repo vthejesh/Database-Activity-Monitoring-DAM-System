@@ -913,6 +913,7 @@ def delete_product(product_id):
             user_id, 'DELETE', 'products', 'Failed',
             f'RBAC Violation: Guest user attempted unauthorized DELETE on product {product_id}', 
             request.remote_addr
+            # the  ujdbj
         )
         detector.check_activity(activity_id)
         return jsonify({'success': False, 'error': 'Access Denied: Guests cannot delete data'}), 403
