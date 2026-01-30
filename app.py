@@ -736,7 +736,7 @@ def login():
         session['username'] = user['username']
         session['role'] = user['role']
         
-        # Log successful login
+        # Log successful login gt
         activity_id = activity_logger.log_activity(
             user['user_id'], 'LOGIN', 'users', 'Success',
             f"User {username} logged in successfully", request.remote_addr
