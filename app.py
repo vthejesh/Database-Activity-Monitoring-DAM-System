@@ -734,6 +734,7 @@ def login():
     if user:
         session['user_id'] = user['user_id']
         session['username'] = user['username']
+        #the sec
         session['role'] = user['role']
         
         # Log successful login gt
