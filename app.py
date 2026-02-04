@@ -1,646 +1,501 @@
 """
 Database Activity Monitoring (DAM) System
-Python Backend with Object-Oriented Programming
-Flask Web Application + MySQL
-
-SECURITY FEATURES:
-- SQL Injection Prevention (Parameterized Queries)
-- Proper Password Hashing (bcrypt via Werkzeug)
-- Role-Based Access Control (RBAC)
-- Brute Force Detection
-- Anomalous Timing Detection
+Complete OOP Implementation with Security Rules
 """
 
-from flask import Flask, request, jsonify, render_template, session
-from flask_cors import CORS
 import mysql.connector
-from mysql.connector import Error
+from mysql.connector import Error, pooling
 from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
-import os
 import pytz
+import threading
+from flask import Flask, request, jsonify, render_template, session, redirect, url_for, flash
+from flask_cors import CORS
 from functools import wraps
 
 # =====================================================
-# CONFIGURATION
+# CONFIGURATION CLASS
 # =====================================================
 
 class Config:
+    """Configuration class for DAM system"""
     DB_HOST = 'localhost'
     DB_USER = 'root'
     DB_PASSWORD = '1234'
     DB_NAME = 'dam_system'
-
-
-    # Flask Configuration
-    SECRET_KEY = 'your-secret-key-change-this'
-
-    # Security Settings
-    WORKING_HOUR_START = 9
-    WORKING_HOUR_END = 18
+    SECRET_KEY = 'dam-system-secret-key-2024'
+    
+    # Security parameters
+    WORKING_HOURS_START = 9  # 9 AM
+    WORKING_HOURS_END = 18   # 6 PM
     MAX_FAILED_ATTEMPTS = 5
-    FAILED_ATTEMPTS_WINDOW = 5  # minutes
-
-    # Severity Levels
-    SEVERITY_CRITICAL = 'Critical'
-    SEVERITY_HIGH = 'High'
-    SEVERITY_MEDIUM = 'Medium'
-    SEVERITY_LOW = 'Low'
-
+    FAILED_WINDOW_MINUTES = 5
 
 # =====================================================
-# DATABASE CONNECTION CLASS
+# DATABASE CONNECTION MANAGER (Singleton)
 # =====================================================
 
 class DatabaseConnection:
-    """Handles MySQL database connections with proper error handling"""
+    """Singleton database connection manager"""
+    _instance = None
+    _lock = threading.Lock()
     
-    def __init__(self, config):
-        self.config = config
-        self.connection = None
+    def __new__(cls):
+        if cls._instance is None:
+            with cls._lock:
+                if cls._instance is None:
+                    cls._instance = super().__new__(cls)
+                    cls._instance._initialize()
+        return cls._instance
     
-    def connect(self):
-        """Establish database connection"""
+    def _initialize(self):
+        """Initialize database connection pool"""
         try:
-            self.connection = mysql.connector.connect(
-                host=self.config.DB_HOST,
-                user=self.config.DB_USER,
-                password=self.config.DB_PASSWORD,
-                database=self.config.DB_NAME,
-                autocommit=False  # Explicit transaction control
+            self.pool = pooling.MySQLConnectionPool(
+                pool_name="dam_pool",
+                pool_size=5,
+                pool_reset_session=True,
+                host=Config.DB_HOST,
+                database=Config.DB_NAME,
+                user=Config.DB_USER,
+                password=Config.DB_PASSWORD,
+                autocommit=True
             )
-            if self.connection.is_connected():
-                return True
+            print("✓ Database connection pool initialized")
         except Error as e:
-            print(f"Database connection error: {e}")
-            return False
+            print(f"✗ Database connection error: {e}")
+            self.pool = None
     
-    def disconnect(self):
-        """Close database connection"""
-        if self.connection and self.connection.is_connected():
-            self.connection.close()
-    
-    def get_cursor(self):
-        """Get database cursor"""
-        if not self.connection or not self.connection.is_connected():
-            self.connect()
-        return self.connection.cursor(dictionary=True)
-    
-    def commit(self):
-        """Commit transaction"""
-        if self.connection:
-            self.connection.commit()
-    
-    def rollback(self):
-        """Rollback transaction"""
-        if self.connection:
-            self.connection.rollback()
+    def get_connection(self):
+        """Get a connection from the pool"""
+        if self.pool:
+            try:
+                return self.pool.get_connection()
+            except Error as e:
+                print(f"✗ Error getting connection: {e}")
+                return None
+        return None
 
 # =====================================================
-# USER MANAGEMENT CLASS
+# BASE MANAGER CLASS
 # =====================================================
-def get_india_time():
-    india = pytz.timezone("Asia/Kolkata")
-    return datetime.now(india)
 
-class UserManager:
-    """Manages user operations and authentication with security best practices"""
+class BaseManager:
+    """Base class for all managers with common database operations"""
     
-    def __init__(self, db_connection):
-        self.db = db_connection
+    def __init__(self):
+        self.db = DatabaseConnection()
+    
+    def _execute_query(self, query, params=None, fetch_one=False, fetch_all=False):
+        """Execute SQL query with proper error handling"""
+        connection = None
+        cursor = None
+        try:
+            connection = self.db.get_connection()
+            if not connection:
+                raise Exception("Database connection failed")
+            
+            cursor = connection.cursor(dictionary=True)
+            cursor.execute(query, params or ())
+            
+            if fetch_one:
+                return cursor.fetchone()
+            elif fetch_all:
+                return cursor.fetchall()
+            else:
+                connection.commit()
+                return cursor.lastrowid
+                
+        except Error as e:
+            if connection:
+                connection.rollback()
+            print(f"Database error: {e}")
+            raise e
+        finally:
+            if cursor:
+                cursor.close()
+            if connection:
+                connection.close()
+
+# =====================================================
+# USER MANAGER CLASS
+# =====================================================
+
+class UserManager(BaseManager):
+    """Manages user operations and authentication"""
     
     def authenticate(self, username, password):
-        """
-        Authenticate user credentials with proper password hashing
-        SECURITY: Uses parameterized queries to prevent SQL injection
-        """
-        cursor = self.db.get_cursor()
+        """Authenticate user with password hashing"""
         try:
-            # SECURITY: Parameterized query prevents SQL injection
             query = """
                 SELECT user_id, username, password_hash, role, account_status 
                 FROM users 
                 WHERE username = %s
             """
-            cursor.execute(query, (username,))
-            user = cursor.fetchone()
+            user = self._execute_query(query, (username,), fetch_one=True)
             
             if user and user['account_status'] == 'Active':
-                # SECURITY: Use proper password hashing verification
                 if check_password_hash(user['password_hash'], password):
-                    # Update last login timestamp
-                    update_query = "UPDATE users SET last_login = NOW() WHERE user_id = %s"
-                    cursor.execute(update_query, (user['user_id'],))
-                    self.db.commit()
+                    # Update last login
+                    self._execute_query(
+                        "UPDATE users SET last_login = NOW() WHERE user_id = %s",
+                        (user['user_id'],)
+                    )
                     return user
             return None
-        except Error as e:
+        except Exception as e:
             print(f"Authentication error: {e}")
             return None
-        finally:
-            cursor.close()
     
     def get_user_by_id(self, user_id):
-        """
-        Get user details by ID
-        SECURITY: Parameterized query
-        """
-        cursor = self.db.get_cursor()
+        """Get user by ID"""
         try:
-            query = "SELECT user_id, username, role, account_status FROM users WHERE user_id = %s"
-            cursor.execute(query, (user_id,))
-            return cursor.fetchone()
-        finally:
-            cursor.close()
-    
-    def get_user_by_username(self, username):
-        """
-        Get user details by username (for logging failed attempts)
-        SECURITY: Parameterized query
-        """
-        cursor = self.db.get_cursor()
-        try:
-            query = "SELECT user_id, username, role FROM users WHERE username = %s"
-            cursor.execute(query, (username,))
-            return cursor.fetchone()
-        finally:
-            cursor.close()
+            query = "SELECT user_id, username, role FROM users WHERE user_id = %s"
+            return self._execute_query(query, (user_id,), fetch_one=True)
+        except Exception as e:
+            print(f"Get user error: {e}")
+            return None
     
     def create_user(self, username, password, role='User'):
-        """
-        Create new user with proper password hashing
-        SECURITY: Passwords are hashed before storage
-        """
-        cursor = self.db.get_cursor()
+        """Create new user with hashed password"""
         try:
-            # SECURITY: Hash password before storing
             password_hash = generate_password_hash(password)
+            query = """
+                INSERT INTO users (username, password_hash, role) 
+                VALUES (%s, %s, %s)
+            """
+            return self._execute_query(query, (username, password_hash, role))
+        except Exception as e:
+            print(f"Create user error: {e}")
+            return None
+
+# =====================================================
+# ACTIVITY LOGGER CLASS
+# =====================================================
+
+class ActivityLogger(BaseManager):
+    """Logs and manages database activities"""
+    
+    def log_activity(self, user_id, operation_type, table_name, 
+                    operation_status, details='', ip_address=None, username=None):
+        """Log database activity with India timestamp"""
+        try:
+            india_tz = pytz.timezone('Asia/Kolkata')
+            india_time = datetime.now(india_tz)
             
-            query = """
-                INSERT INTO users (username, password_hash, role, account_status)
-                VALUES (%s, %s, %s, 'Active')
-            """
-            cursor.execute(query, (username, password_hash, role))
-            self.db.commit()
-            return cursor.lastrowid
-        except Error as e:
-            self.db.rollback()
-            raise e
-        finally:
-            cursor.close()
-    
-    def get_all_users(self):
-        """Get all users - SECURITY: No sensitive data exposed"""
-        cursor = self.db.get_cursor()
-        try:
-            query = """
-                SELECT user_id, username, role, account_status, created_at, last_login 
-                FROM users
-            """
-            cursor.execute(query)
-            return cursor.fetchall()
-        finally:
-            cursor.close()
-
-# =====================================================
-# ACTIVITY LOGGING CLASS
-# =====================================================
-
-class ActivityLogger:
-    """Logs and manages database activities with security focus"""
-    
-    def __init__(self, db_connection):
-        self.db = db_connection
-    
-    def log_activity(self, user_id, operation_type, table_name, operation_status, operation_details='', ip_address=None):
-        """Logs database activity with localized India Time"""
-        cursor = self.db.get_cursor()
-        try:
-            # 1. Generate the correct India Time right now
-            india_now = get_india_time() 
-
-            # 2. The SQL query (Notice we added access_timestamp)
+            # If username not provided, fetch it
+            if not username and user_id:
+                user_manager = UserManager()
+                user = user_manager.get_user_by_id(user_id)
+                username = user['username'] if user else 'Unknown'
+            
             query = """
                 INSERT INTO activity_logs 
-                (user_id, operation_type, table_name, operation_status, 
+                (user_id, username, operation_type, table_name, operation_status, 
                  operation_details, ip_address, access_timestamp)
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
             """
             
-            # 3. Execute with the india_now variable at the end
-            cursor.execute(query, (
-                user_id, 
-                operation_type, 
-                table_name, 
-                operation_status, 
-                operation_details, 
-                ip_address, 
-                india_now
-            ))
-            
-            self.db.commit()
-            return cursor.lastrowid
+            return self._execute_query(
+                query, 
+                (user_id, username, operation_type, table_name, 
+                 operation_status, details, ip_address, india_time)
+            )
         except Exception as e:
-            if self.db.connection:
-                self.db.connection.rollback()
-            print(f"Logging Error: {e}")
+            print(f"Log activity error: {e}")
             return None
-        finally:
-            cursor.close()
     
-    def get_all_activities(self, limit=100):
-        """
-        Get all activities
-        SECURITY: Parameterized query with limit to prevent resource exhaustion
-        """
-        cursor = self.db.get_cursor()
+    def get_all_activities(self, limit=50):
+        """Get all activities"""
         try:
             query = """
-                SELECT 
-                    al.activity_id,
-                    al.user_id,
-                    u.username,
-                    u.role,
-                    al.operation_type,
-                    al.table_name,
-                    al.access_timestamp,
-                    al.operation_status,
-                    al.operation_details,
-                    al.is_suspicious,
-                    al.suspicious_reasons,
-                    al.ip_address
+                SELECT al.*, u.role as user_role 
                 FROM activity_logs al
                 LEFT JOIN users u ON al.user_id = u.user_id
                 ORDER BY al.access_timestamp DESC
                 LIMIT %s
             """
-            cursor.execute(query, (limit,))
-            return cursor.fetchall()
-        finally:
-            cursor.close()
+            return self._execute_query(query, (limit,), fetch_all=True)
+        except Exception as e:
+            print(f"Get activities error: {e}")
+            return []
     
     def get_suspicious_activities(self):
-        """Get only suspicious activities"""
-        cursor = self.db.get_cursor()
+        """Get suspicious activities"""
         try:
             query = """
-                SELECT 
-                    al.activity_id,
-                    al.user_id,
-                    u.username,
-                    u.role,
-                    al.operation_type,
-                    al.table_name,
-                    al.access_timestamp,
-                    al.operation_status,
-                    al.operation_details,
-                    al.suspicious_reasons,
-                    al.ip_address
+                SELECT al.*, u.role as user_role 
                 FROM activity_logs al
                 LEFT JOIN users u ON al.user_id = u.user_id
                 WHERE al.is_suspicious = TRUE
                 ORDER BY al.access_timestamp DESC
             """
-            cursor.execute(query)
-            return cursor.fetchall()
-        finally:
-            cursor.close()
+            return self._execute_query(query, fetch_all=True)
+        except Exception as e:
+            print(f"Get suspicious activities error: {e}")
+            return []
     
-    def get_user_activities(self, user_id, limit=50):
-        """Get activities for a specific user"""
-        cursor = self.db.get_cursor()
+    def get_failed_attempts_count(self, username, minutes=5):
+        """Count failed attempts in last N minutes"""
         try:
             query = """
-                SELECT * FROM activity_logs
-                WHERE user_id = %s
-                ORDER BY access_timestamp DESC
-                LIMIT %s
-            """
-            cursor.execute(query, (user_id, limit))
-            return cursor.fetchall()
-        finally:
-            cursor.close()
-    
-    def get_recent_failed_attempts_by_username(self, username, minutes=5):
-        """
-        Get recent failed login attempts by username (for brute-force detection)
-        SECURITY: Tracks unauthorized access attempts even when user_id is unknown
-        """
-        cursor = self.db.get_cursor()
-        try:
-            query = """
-                SELECT COUNT(*) as count
-                FROM activity_logs
-                WHERE operation_type = 'LOGIN'
+                SELECT COUNT(*) as count 
+                FROM activity_logs 
+                WHERE username = %s 
                   AND operation_status = 'Failed'
-                  AND operation_details LIKE %s
+                  AND operation_type = 'LOGIN'
                   AND access_timestamp >= DATE_SUB(NOW(), INTERVAL %s MINUTE)
             """
-            cursor.execute(query, (f'%Attempted username: {username}%', minutes))
-            result = cursor.fetchone()
+            result = self._execute_query(query, (username, minutes), fetch_one=True)
             return result['count'] if result else 0
-        finally:
-            cursor.close()
+        except Exception as e:
+            print(f"Get failed attempts error: {e}")
+            return 0
 
 # =====================================================
-# SUSPICIOUS ACTIVITY DETECTOR CLASS
+# SECURITY DETECTOR CLASS (Implements Security Rules)
 # =====================================================
 
-class SuspiciousActivityDetector:
-    """
-    Detects suspicious activities based on security rules
+class SecurityDetector(BaseManager):
+    """Detects suspicious activities based on security rules"""
     
-    SECURITY RULES IMPLEMENTED:
-    1. Role-Based Access Control (RBAC): Guest users restricted to SELECT only
-    2. Brute Force Detection: >5 failed attempts within 5-minute window
-    3. Anomalous Timing: Access outside working hours (9 AM - 6 PM)
-    """
-    
-    def __init__(self, db_connection, config, activity_logger):
-        self.db = db_connection
-        self.config = config
-        self.logger = activity_logger
+    def __init__(self):
+        super().__init__()
+        self.activity_logger = ActivityLogger()
+        self.user_manager = UserManager()
     
     def check_activity(self, activity_id):
         """
-        Check if an activity is suspicious and assign severity level
+        Check if an activity is suspicious based on security rules
         
-        Returns:
-            tuple: (is_suspicious, severity_level, reasons)
+        Rules implemented:
+        1. Guest users performing write operations (INSERT/UPDATE/DELETE)
+        2. More than 5 failed operations in 5 minutes
+        3. Access outside working hours (9 AM - 6 PM)
         """
-        cursor = self.db.get_cursor()
         try:
-            # Get activity details with parameterized query
+            # Get activity details
             query = """
-                SELECT al.*, u.role, u.username
+                SELECT al.*, u.role 
                 FROM activity_logs al
                 LEFT JOIN users u ON al.user_id = u.user_id
                 WHERE al.activity_id = %s
             """
-            cursor.execute(query, (activity_id,))
-            activity = cursor.fetchone()
+            activity = self._execute_query(query, (activity_id,), fetch_one=True)
             
             if not activity:
-                return False, None, []
+                return False, []
             
-            is_suspicious = False
+            suspicious = False
             reasons = []
-            severity = self.config.SEVERITY_LOW
             
-            # RULE 1: Role-Based Access Control (RBAC)
-            # Guest users attempting write operations = CRITICAL
+            # RULE 1: Guest user performing write operations
             if activity['role'] == 'Guest' and activity['operation_type'] in ['INSERT', 'UPDATE', 'DELETE']:
-                is_suspicious = True
-                severity = self.config.SEVERITY_CRITICAL
-                reasons.append('RBAC Violation: Guest user attempting write operation (DML)')
+                suspicious = True
+                reasons.append(f"Guest user attempted {activity['operation_type']} operation")
             
-            # RULE 2: Brute Force Detection
-            # Multiple failed operations = HIGH severity
-            if activity['operation_status'] == 'Failed':
-                if activity['operation_type'] == 'LOGIN':
-                    # Extract attempted username from details
-                    username = self._extract_username_from_details(activity['operation_details'])
-                    if username:
-                        failed_count = self.logger.get_recent_failed_attempts_by_username(
-                            username, 
-                            self.config.FAILED_ATTEMPTS_WINDOW
-                        )
-                        if failed_count > self.config.MAX_FAILED_ATTEMPTS:
-                            is_suspicious = True
-                            severity = self.config.SEVERITY_HIGH
-                            reasons.append(f'Brute Force Attack: {failed_count} failed login attempts for username "{username}"')
-                else:
-                    # Failed operations on data
-                    failed_count = self._count_recent_failed_operations(activity['user_id'])
-                    if failed_count > self.config.MAX_FAILED_ATTEMPTS:
-                        is_suspicious = True
-                        severity = self.config.SEVERITY_HIGH
-                        reasons.append(f'Multiple Failed Operations: {failed_count} failed attempts detected')
+            # RULE 2: Failed login attempts (brute force detection)
+            if activity['operation_type'] == 'LOGIN' and activity['operation_status'] == 'Failed':
+                username = activity['username']
+                failed_count = self.activity_logger.get_failed_attempts_count(
+                    username, Config.FAILED_WINDOW_MINUTES
+                )
+                if failed_count > Config.MAX_FAILED_ATTEMPTS:
+                    suspicious = True
+                    reasons.append(f"{failed_count} failed login attempts in {Config.FAILED_WINDOW_MINUTES} minutes")
             
-            # RULE 3: Anomalous Timing Detection
-            # Access outside working hours = MEDIUM severity
-            hour = activity['access_timestamp'].hour
-            if hour < self.config.WORKING_HOUR_START or hour >= self.config.WORKING_HOUR_END:
-                is_suspicious = True
-                # Only upgrade to MEDIUM if not already CRITICAL or HIGH
-                if severity == self.config.SEVERITY_LOW:
-                    severity = self.config.SEVERITY_MEDIUM
-                reasons.append(f'Anomalous Timing: Access outside corporate hours (Hour: {hour}:00, Expected: 09:00-18:00)')
+            # RULE 3: Access outside working hours
+            if activity['access_timestamp']:
+                hour = activity['access_timestamp'].hour
+                if hour < Config.WORKING_HOURS_START or hour >= Config.WORKING_HOURS_END:
+                    suspicious = True
+                    reasons.append(f"Access outside working hours ({hour}:00)")
             
             # Update activity if suspicious
-            if is_suspicious:
+            if suspicious:
                 self._mark_as_suspicious(activity_id, reasons)
-                self._create_alert(activity_id, severity, reasons)
+                self._create_alert(activity_id, reasons)
             
-            return is_suspicious, severity, reasons
+            return suspicious, reasons
             
-        finally:
-            cursor.close()
-    
-    def _extract_username_from_details(self, details):
-        """Extract username from operation details for failed login tracking"""
-        if details and 'Attempted username:' in details:
-            try:
-                parts = details.split('Attempted username:')[1].split('.')[0].strip()
-                return parts
-            except:
-                return None
-        return None
-    
-    def _count_recent_failed_operations(self, user_id):
-        """Count failed operations in the last N minutes (excluding login)"""
-        cursor = self.db.get_cursor()
-        try:
-            query = """
-                SELECT COUNT(*) as count
-                FROM activity_logs
-                WHERE user_id = %s 
-                  AND operation_status = 'Failed'
-                  AND operation_type != 'LOGIN'
-                  AND access_timestamp >= DATE_SUB(NOW(), INTERVAL %s MINUTE)
-            """
-            cursor.execute(query, (user_id, self.config.FAILED_ATTEMPTS_WINDOW))
-            result = cursor.fetchone()
-            return result['count'] if result else 0
-        finally:
-            cursor.close()
+        except Exception as e:
+            print(f"Check activity error: {e}")
+            return False, []
     
     def _mark_as_suspicious(self, activity_id, reasons):
-        """Mark activity as suspicious in the database"""
-        cursor = self.db.get_cursor()
+        """Mark activity as suspicious in database"""
         try:
-            reason_text = '; '.join(reasons)
+            reason_text = "; ".join(reasons)
             query = """
-                UPDATE activity_logs
+                UPDATE activity_logs 
                 SET is_suspicious = TRUE, suspicious_reasons = %s
                 WHERE activity_id = %s
             """
-            cursor.execute(query, (reason_text, activity_id))
-            self.db.commit()
-        except Error as e:
-            self.db.rollback()
-            print(f"Error marking activity as suspicious: {e}")
-        finally:
-            cursor.close()
+            self._execute_query(query, (reason_text, activity_id))
+        except Exception as e:
+            print(f"Mark suspicious error: {e}")
     
-    def _create_alert(self, activity_id, severity, reasons):
-        """Create security alert with proper severity level"""
-        cursor = self.db.get_cursor()
+    def _create_alert(self, activity_id, reasons):
+        """Create security alert"""
         try:
-            reason_text = '; '.join(reasons)
+            # Determine severity
+            severity = 'Medium'
+            if 'Guest user attempted' in reasons[0]:
+                severity = 'Critical'
+            elif 'failed login attempts' in reasons[0]:
+                severity = 'High'
+            
+            reason_text = "; ".join(reasons)
             query = """
-                INSERT INTO security_alerts 
-                (activity_id, alert_type, severity, alert_message)
+                INSERT INTO security_alerts (activity_id, alert_type, severity, alert_message)
                 VALUES (%s, 'Suspicious Activity', %s, %s)
             """
-            cursor.execute(query, (activity_id, severity, reason_text))
-            self.db.commit()
-        except Error as e:
-            self.db.rollback()
-            print(f"Error creating alert: {e}")
-        finally:
-            cursor.close()
+            self._execute_query(query, (activity_id, severity, reason_text))
+        except Exception as e:
+            print(f"Create alert error: {e}")
     
-    def get_alert_summary(self):
-        """Get summary of security alerts"""
-        cursor = self.db.get_cursor()
+    def get_security_summary(self):
+        """Get security summary report"""
         try:
-            query = """
-                SELECT 
-                    COUNT(*) as total_alerts,
-                    SUM(CASE WHEN is_resolved = FALSE THEN 1 ELSE 0 END) as unresolved_alerts,
-                    SUM(CASE WHEN severity = 'Critical' THEN 1 ELSE 0 END) as critical_alerts,
-                    SUM(CASE WHEN severity = 'High' THEN 1 ELSE 0 END) as high_alerts,
-                    SUM(CASE WHEN severity = 'Medium' THEN 1 ELSE 0 END) as medium_alerts
-                FROM security_alerts
+            # Get suspicious activities count
+            query_suspicious = "SELECT COUNT(*) as count FROM activity_logs WHERE is_suspicious = TRUE"
+            suspicious = self._execute_query(query_suspicious, fetch_one=True)
+            
+            # Get failed operations count
+            query_failed = "SELECT COUNT(*) as count FROM activity_logs WHERE operation_status = 'Failed'"
+            failed = self._execute_query(query_failed, fetch_one=True)
+            
+            # Get total activities
+            query_total = "SELECT COUNT(*) as count FROM activity_logs"
+            total = self._execute_query(query_total, fetch_one=True)
+            
+            # Get alerts by severity
+            query_alerts = """
+                SELECT severity, COUNT(*) as count 
+                FROM security_alerts 
+                WHERE is_resolved = FALSE
+                GROUP BY severity
             """
-            cursor.execute(query)
-            return cursor.fetchone()
-        finally:
-            cursor.close()
+            alerts = self._execute_query(query_alerts, fetch_all=True)
+            
+            return {
+                'total_activities': total['count'] if total else 0,
+                'suspicious_activities': suspicious['count'] if suspicious else 0,
+                'failed_operations': failed['count'] if failed else 0,
+                'alerts_by_severity': alerts
+            }
+        except Exception as e:
+            print(f"Get security summary error: {e}")
+            return {}
 
 # =====================================================
-# PRODUCT MANAGEMENT CLASS (Sample Data Operations)
+# PRODUCT MANAGER CLASS (Sample Data Operations)
 # =====================================================
 
-class ProductManager:
-    """Manages product CRUD operations with parameterized queries"""
+class ProductManager(BaseManager):
+    """Manages product CRUD operations with activity logging"""
     
-    def __init__(self, db_connection):
-        self.db = db_connection
+    def __init__(self):
+        super().__init__()
+        self.activity_logger = ActivityLogger()
+        self.security_detector = SecurityDetector()
     
     def get_all_products(self):
-        """Get all products - SECURITY: Parameterized query"""
-        cursor = self.db.get_cursor()
+        """Get all products with activity logging"""
         try:
             query = "SELECT * FROM products ORDER BY product_id"
-            cursor.execute(query)
-            return cursor.fetchall()
-        finally:
-            cursor.close()
-    
-    def add_product(self, name, category, price, stock):
-        cursor = self.db.get_cursor()
-        try:
-            # Ensure your table column names match exactly: 
-            # product_name, category, price, stock_quantity
-            query = """
-                INSERT INTO products (product_name, category, price, stock_quantity)
-                VALUES (%s, %s, %s, %s)
-            """
-            cursor.execute(query, (name, category, price, stock))
-            self.db.commit()
-            return True
+            products = self._execute_query(query, fetch_all=True)
+            return products
         except Exception as e:
-            print(f"Error adding product: {e}")
-            self.db.rollback()
-            return False
-        finally:
-            cursor.close()
+            print(f"Get products error: {e}")
+            return []
     
-    def get_product_by_id(self, product_id):
-        """Get product by ID - SECURITY: Parameterized query"""
-        cursor = self.db.get_cursor()
+    def add_product(self, name, category, price, stock, user_id, ip_address):
+        """Add new product with security checks"""
         try:
-            query = "SELECT * FROM products WHERE product_id = %s"
-            cursor.execute(query, (product_id,))
-            return cursor.fetchone()
-        finally:
-            cursor.close()
-    
-    def create_product(self, name, category, price, stock):
-        """Create new product - SECURITY: Parameterized query"""
-        cursor = self.db.get_cursor()
-        try:
+            # Log the activity before operation
+            activity_id = self.activity_logger.log_activity(
+                user_id, 'INSERT', 'products', 'Success',
+                f"Adding product: {name}", ip_address
+            )
+            
+            # Perform the operation
             query = """
                 INSERT INTO products (product_name, category, price, stock_quantity)
                 VALUES (%s, %s, %s, %s)
             """
-            cursor.execute(query, (name, category, price, stock))
-            self.db.commit()
-            return cursor.lastrowid
-        except Error as e:
-            self.db.rollback()
-            raise e
-        finally:
-            cursor.close()
+            product_id = self._execute_query(query, (name, category, price, stock))
+            
+            # Check if suspicious
+            if activity_id:
+                self.security_detector.check_activity(activity_id)
+            
+            return product_id
+            
+        except Exception as e:
+            # Log failed operation
+            self.activity_logger.log_activity(
+                user_id, 'INSERT', 'products', 'Failed',
+                f"Failed to add product: {str(e)}", ip_address
+            )
+            print(f"Add product error: {e}")
+            return None
     
-    def update_product(self, product_id, name, category, price, stock):
-        """Update product - SECURITY: Parameterized query"""
-        cursor = self.db.get_cursor()
+    def delete_product(self, product_id, user_id, ip_address):
+        """Delete product with security checks"""
         try:
-            query = """
-                UPDATE products
-                SET product_name = %s, category = %s, price = %s, stock_quantity = %s
-                WHERE product_id = %s
-            """
-            cursor.execute(query, (name, category, price, stock, product_id))
-            self.db.commit()
-            return cursor.rowcount > 0
-        except Error as e:
-            self.db.rollback()
-            raise e
-        finally:
-            cursor.close()
-    
-    def delete_product(self, product_id):
-        """Delete product - SECURITY: Parameterized query"""
-        cursor = self.db.get_cursor()
-        try:
-            query = "DELETE FROM products WHERE product_id = %s"
-            cursor.execute(query, (product_id,))
-            self.db.commit()
-            return cursor.rowcount > 0
-        except Error as e:
-            self.db.rollback()
-            raise e
-        finally:
-            cursor.close()
+            # Get product name before deletion
+            query_select = "SELECT product_name FROM products WHERE product_id = %s"
+            product = self._execute_query(query_select, (product_id,), fetch_one=True)
+            
+            if not product:
+                return False
+            
+            # Log the activity
+            activity_id = self.activity_logger.log_activity(
+                user_id, 'DELETE', 'products', 'Success',
+                f"Deleting product: {product['product_name']}", ip_address
+            )
+            
+            # Perform deletion
+            query_delete = "DELETE FROM products WHERE product_id = %s"
+            result = self._execute_query(query_delete, (product_id,))
+            
+            # Check if suspicious
+            if activity_id:
+                self.security_detector.check_activity(activity_id)
+            
+            return result > 0
+            
+        except Exception as e:
+            # Log failed operation
+            self.activity_logger.log_activity(
+                user_id, 'DELETE', 'products', 'Failed',
+                f"Failed to delete product: {str(e)}", ip_address
+            )
+            print(f"Delete product error: {e}")
+            return False
 
 # =====================================================
-# FLASK APPLICATION
+# FLASK WEB APPLICATION
 # =====================================================
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder='templates')
 app.secret_key = Config.SECRET_KEY
 CORS(app)
 
-
-# Initialize components
-config = Config()
-db_connection = DatabaseConnection(config)
-user_manager = UserManager(db_connection)
-activity_logger = ActivityLogger(db_connection)
-detector = SuspiciousActivityDetector(db_connection, config, activity_logger)
-product_manager = ProductManager(db_connection)
+# Initialize managers
+user_manager = UserManager()
+activity_logger = ActivityLogger()
+security_detector = SecurityDetector()
+product_manager = ProductManager()
 
 # =====================================================
 # DECORATORS
 # =====================================================
 
-from flask import redirect, url_for
-
 def login_required(f):
+    """Require user to be logged in"""
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if 'user_id' not in session:
@@ -648,101 +503,127 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+# =====================================================
+# WEB ROUTES
+# =====================================================
 
-def admin_required(f):
-    """Decorator to require admin role"""
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if 'user_id' not in session:
-            return jsonify({'error': 'Authentication required'}), 401
-        user = user_manager.get_user_by_id(session['user_id'])
-        if user['role'] != 'Admin':
-            return jsonify({'error': 'Admin access required'}), 403
-        return f(*args, **kwargs)
-    return decorated_function
-@app.route("/")
+@app.route('/')
 def login_page():
-    return render_template("login.html")
-
-
-@app.route("/login", methods=["POST"])
-def login_form():
-    username = request.form.get("username")
-    password = request.form.get("password")
-
-    user = user_manager.authenticate(username, password)
-
-    if not user:
-        return render_template("login.html", error="Invalid credentials")
-
-    session["user_id"] = user["user_id"]
-    session["username"] = user["username"]
-    session["role"] = user["role"]
-
-    activity_id = activity_logger.log_activity(
-        user["user_id"], "LOGIN", "users", "Success",
-        f"User {username} logged in via web", request.remote_addr
-    )
-    detector.check_activity(activity_id)
-
-    return redirect("/dashboard")
-
+    """Serve login page"""
+    return render_template('login.html')
 
 @app.route('/dashboard')
 @login_required
 def dashboard():
-    users = user_manager.get_all_users()
+    """Serve dashboard page"""
+    user_id = session.get('user_id')
+    user = user_manager.get_user_by_id(user_id)
+    
+    if not user:
+        return redirect(url_for('login_page'))
+    
+    # Get data based on user role
     products = product_manager.get_all_products()
-    activities = activity_logger.get_all_activities()
-    suspicious = activity_logger.get_suspicious_activities()
-
+    activities = []
+    suspicious = []
+    summary = {}
+    
+    if user['role'] == 'Admin':
+        activities = activity_logger.get_all_activities()
+        suspicious = activity_logger.get_suspicious_activities()
+        summary = security_detector.get_security_summary()
+    
     return render_template(
         'dashboard.html',
-        username=session['username'],
-        role=session['role'],
-        users=users,
+        username=user['username'],
+        role=user['role'],
         products=products,
         activities=activities,
-        suspicious=suspicious
+        suspicious=suspicious,
+        summary=summary
     )
 
-
-
-@app.route("/logout")
-def logout_page():
-    session.clear()
-    return redirect("/")
-
-# =====================================================
-# AUTHENTICATION ROUTES
-# =====================================================
-
-@app.route('/api/login', methods=['POST'])
+@app.route('/login', methods=['POST'])
 def login():
-    """User login with proper security logging"""
-    data = request.json
-    username = data.get('username')
-    password = data.get('password', 'guest123')
-    is_guest = data.get('is_guest', False)
-    
-    if is_guest:
-        username = 'guest_user'
-        password = 'guest123'
+    """Handle login form submission"""
+    username = request.form.get('username')
+    password = request.form.get('password')
     
     user = user_manager.authenticate(username, password)
     
     if user:
         session['user_id'] = user['user_id']
         session['username'] = user['username']
-        #the sec
         session['role'] = user['role']
         
-        # Log successful login gt
+        # Log successful login
+        activity_logger.log_activity(
+            user['user_id'], 'LOGIN', 'users', 'Success',
+            'User logged in successfully', request.remote_addr
+        )
+        
+        return redirect(url_for('dashboard'))
+    else:
+        # Log failed login
+        activity_logger.log_activity(
+            None, 'LOGIN', 'users', 'Failed',
+            'Invalid credentials', request.remote_addr, username
+        )
+        
+        # Check for suspicious activity
+        recent_activities = activity_logger.get_all_activities(limit=10)
+        if recent_activities:
+            security_detector.check_activity(recent_activities[0]['activity_id'])
+        
+        flash('Invalid username or password', 'error')
+        return redirect(url_for('login_page'))
+
+@app.route('/logout')
+def logout():
+    """Handle logout"""
+    user_id = session.get('user_id')
+    username = session.get('username')
+    
+    if user_id:
+        activity_logger.log_activity(
+            user_id, 'LOGOUT', 'users', 'Success',
+            'User logged out', request.remote_addr
+        )
+    
+    session.clear()
+    return redirect(url_for('login_page'))
+
+# =====================================================
+# API ROUTES
+# =====================================================
+
+@app.route('/api/login', methods=['POST'])
+def api_login():
+    """API login endpoint"""
+    data = request.json
+    username = data.get('username')
+    password = data.get('password')
+    is_guest = data.get('is_guest', False)
+    
+    if is_guest:
+        username = 'guest_user'
+        password = 'password123'
+    
+    user = user_manager.authenticate(username, password)
+    
+    if user:
+        session['user_id'] = user['user_id']
+        session['username'] = user['username']
+        session['role'] = user['role']
+        
+        # Log activity
         activity_id = activity_logger.log_activity(
             user['user_id'], 'LOGIN', 'users', 'Success',
-            f"User {username} logged in successfully", request.remote_addr
+            'API login successful', request.remote_addr
         )
-        detector.check_activity(activity_id)
+        
+        if activity_id:
+            security_detector.check_activity(activity_id)
         
         return jsonify({
             'success': True,
@@ -753,306 +634,269 @@ def login():
             }
         })
     else:
-        # SECURITY: Log failed login with attempted username for brute-force detection
+        # Log failed attempt
         activity_id = activity_logger.log_activity(
-            0, 'LOGIN', 'users', 'Failed',
-            f"Invalid credentials", request.remote_addr, username
+            None, 'LOGIN', 'users', 'Failed',
+            'API login failed', request.remote_addr, username
         )
-        detector.check_activity(activity_id)
+        
+        if activity_id:
+            security_detector.check_activity(activity_id)
         
         return jsonify({'success': False, 'error': 'Invalid credentials'}), 401
 
-@app.route('/api/logout', methods=['POST'])
+@app.route('/api/dashboard', methods=['GET'])
 @login_required
-def logout():
-    """User logout"""
+def api_dashboard():
+    """API endpoint for dashboard data"""
     user_id = session.get('user_id')
-    username = session.get('username')
+    user = user_manager.get_user_by_id(user_id)
     
-    # Log logout
-    activity_id = activity_logger.log_activity(
-        user_id, 'LOGOUT', 'users', 'Success',
-        f"User {username} logged out", request.remote_addr
-    )
+    if not user:
+        return jsonify({'success': False, 'error': 'User not found'}), 404
     
-    session.clear()
-    return jsonify({'success': True})
-
-# =====================================================
-# PRODUCT ROUTES (CRUD Operations with RBAC)
-# =====================================================
+    data = {
+        'success': True,
+        'user': {
+            'user_id': user['user_id'],
+            'username': user['username'],
+            'role': user['role']
+        },
+        'products': product_manager.get_all_products()
+    }
+    
+    if user['role'] == 'Admin':
+        data['activities'] = activity_logger.get_all_activities()
+        data['suspicious'] = activity_logger.get_suspicious_activities()
+        data['summary'] = security_detector.get_security_summary()
+    
+    return jsonify(data)
 
 @app.route('/api/products', methods=['GET'])
 @login_required
-def get_products():
-    """Get all products"""
-    user_id = session['user_id']
-    
+def get_products_api():
+    """Get all products API"""
     try:
         products = product_manager.get_all_products()
-        
-        # Log SELECT operation
-        activity_id = activity_logger.log_activity(
-            user_id, 'SELECT', 'products', 'Success',
-            'Retrieved product list', request.remote_addr
-        )
-        detector.check_activity(activity_id)
-        
         return jsonify({'success': True, 'products': products})
     except Exception as e:
-        # Log failed operation
-        activity_id = activity_logger.log_activity(
-            user_id, 'SELECT', 'products', 'Failed',
-            str(e), request.remote_addr
-        )
-        detector.check_activity(activity_id)
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/products', methods=['POST'])
 @login_required
-def create_product():
-    """Create new product - RBAC enforced"""
-    user_id = session.get('user_id')
-    user_role = session.get('role')
-    data = request.json
-    
-    # 1. SECURITY: Check if user is Guest
-    if user_role == 'Guest':
-        activity_id = activity_logger.log_activity(
-            user_id, 'INSERT', 'products', 'Failed',
-            'RBAC Violation: Guest user attempted unauthorized INSERT', 
-            request.remote_addr
-        )
-        detector.check_activity(activity_id)
-        return jsonify({'success': False, 'error': 'Access Denied: Guests cannot insert data'}), 403
-    
+def create_product_api():
+    """Create new product API"""
     try:
-        # 2. Call the manager (Ensure these keys match your HTML: name, category, price, stock)
+        user_id = session.get('user_id')
+        user_role = session.get('role')
+        data = request.json
+        
+        # RBAC check
+        if user_role == 'Guest':
+            return jsonify({
+                'success': False, 
+                'error': 'Access denied. Guest users cannot add products.'
+            }), 403
+        
+        # Validate input
+        required_fields = ['name', 'category', 'price', 'stock']
+        for field in required_fields:
+            if field not in data or not str(data[field]).strip():
+                return jsonify({
+                    'success': False, 
+                    'error': f'{field.capitalize()} is required'
+                }), 400
+        
+        # Add product
         product_id = product_manager.add_product(
-            data['name'], 
-            data['category'], 
-            data['price'], 
-            data['stock']
+            data['name'],
+            data['category'],
+            float(data['price']),
+            int(data['stock']),
+            user_id,
+            request.remote_addr
         )
         
         if product_id:
-            # 3. Log success
-            activity_id = activity_logger.log_activity(
-                user_id, 'INSERT', 'products', 'Success',
-                f"Created product: {data['name']}", request.remote_addr
-            )
-            detector.check_activity(activity_id)
-            return jsonify({'success': True, 'product_id': product_id})
+            return jsonify({
+                'success': True,
+                'product_id': product_id,
+                'message': 'Product added successfully'
+            })
         else:
-            raise Exception("Database failed to return product ID")
-
+            return jsonify({
+                'success': False,
+                'error': 'Failed to add product'
+            }), 500
+            
     except Exception as e:
-        # 4. Log failed operation (e.g., database error)
-        activity_id = activity_logger.log_activity(
-            user_id, 'INSERT', 'products', 'Failed',
-            f"Error: {str(e)}", request.remote_addr
-        )
-        detector.check_activity(activity_id)
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-@app.route('/api/products/<int:product_id>', methods=['PUT'])
-@login_required
-def update_product(product_id):
-    """Update product - RBAC enforced"""
-    user_id = session['user_id']
-    user_role = session['role']
-    data = request.json
-    
-    # SECURITY: Enforce RBAC
-    if user_role == 'Guest':
-        activity_id = activity_logger.log_activity(
-            user_id, 'UPDATE', 'products', 'Failed',
-            f'RBAC Violation: Guest user attempted unauthorized UPDATE on product {product_id}', 
-            request.remote_addr
-        )
-        detector.check_activity(activity_id)
-        return jsonify({'success': False, 'error': 'Access Denied: Guests cannot update data'}), 403
-    
-    try:
-        success = product_manager.update_product(
-            product_id, data['name'], data['category'],
-            data['price'], data['stock']
-        )
-        
-        if success:
-            activity_id = activity_logger.log_activity(
-                user_id, 'UPDATE', 'products', 'Success',
-                f"Updated product: {data['name']} (ID: {product_id})", request.remote_addr
-            )
-            detector.check_activity(activity_id)
-            return jsonify({'success': True})
-        else:
-            activity_id = activity_logger.log_activity(
-                user_id, 'UPDATE', 'products', 'Failed',
-                f"Product not found (ID: {product_id})", request.remote_addr
-            )
-            detector.check_activity(activity_id)
-            return jsonify({'success': False, 'error': 'Product not found'}), 404
-    except Exception as e:
-        activity_id = activity_logger.log_activity(
-            user_id, 'UPDATE', 'products', 'Failed',
-            str(e), request.remote_addr
-        )
-        detector.check_activity(activity_id)
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/products/<int:product_id>', methods=['DELETE'])
 @login_required
-def delete_product(product_id):
-    """Delete product - RBAC enforced"""
-    user_id = session['user_id']
-    user_role = session['role']
-    
-    # SECURITY: Enforce RBAC
-    if user_role == 'Guest':
-        activity_id = activity_logger.log_activity(
-            user_id, 'DELETE', 'products', 'Failed',
-            f'RBAC Violation: Guest user attempted unauthorized DELETE on product {product_id}', 
-            request.remote_addr
-            # the  ujdbj
-        )
-        detector.check_activity(activity_id)
-        return jsonify({'success': False, 'error': 'Access Denied: Guests cannot delete data'}), 403
-    
+def delete_product_api(product_id):
+    """Delete product API"""
     try:
-        success = product_manager.delete_product(product_id)
+        user_id = session.get('user_id')
+        user_role = session.get('role')
+        
+        # RBAC check
+        if user_role == 'Guest':
+            return jsonify({
+                'success': False, 
+                'error': 'Access denied. Guest users cannot delete products.'
+            }), 403
+        
+        success = product_manager.delete_product(
+            product_id, user_id, request.remote_addr
+        )
         
         if success:
-            activity_id = activity_logger.log_activity(
-                user_id, 'DELETE', 'products', 'Success',
-                f"Deleted product ID: {product_id}", request.remote_addr
-            )
-            #thi
-            detector.check_activity(activity_id)
-            return jsonify({'success': True})
+            return jsonify({
+                'success': True,
+                'message': 'Product deleted successfully'
+            })
         else:
-            activity_id = activity_logger.log_activity(
-                user_id, 'DELETE', 'products', 'Failed',
-                f"Product not found (ID: {product_id})", request.remote_addr
-            )
-            detector.check_activity(activity_id)
-            return jsonify({'success': False, 'error': 'Product not found'}), 404
+            return jsonify({
+                'success': False,
+                'error': 'Product not found or could not be deleted'
+            }), 404
+            
     except Exception as e:
-        activity_id = activity_logger.log_activity(
-            user_id, 'DELETE', 'products', 'Failed',
-            str(e), request.remote_addr
-        )
-        detector.check_activity(activity_id)
         return jsonify({'success': False, 'error': str(e)}), 500
-
-# =====================================================
-# MONITORING & REPORTING ROUTES
-# =====================================================
-@app.route('/api/dashboard', methods=['GET'])
-@login_required
-def dashboard_data():
-    user = user_manager.get_user_by_id(session['user_id'])
-
-    # Indian time (you already added pytz + helper)
-    now = get_india_time()
-    within_hours = (
-        Config.WORKING_HOUR_START <= now.hour < Config.WORKING_HOUR_END
-    )
-
-    data = {
-        "user": {
-            "user_id": user['user_id'],
-            "username": user['username'],
-            "role": user['role']
-        },
-        "current_time": now.strftime("%H:%M:%S"),
-        "within_hours": within_hours
-    }
-
-    # Products → everyone can see
-    data["products"] = product_manager.get_all_products()
-
-    # Admin only data
-    if user['role'] == 'Admin':
-        data["activities"] = activity_logger.get_all_activities()
-        data["suspicious"] = activity_logger.get_suspicious_activities()
-
-    return jsonify(data)
-
 
 @app.route('/api/activities', methods=['GET'])
 @login_required
-def get_activities():
-    """Get all activities"""
+def get_activities_api():
+    """Get activities API (Admin only)"""
     try:
+        user_id = session.get('user_id')
+        user = user_manager.get_user_by_id(user_id)
+        
+        if user['role'] != 'Admin':
+            return jsonify({
+                'success': False, 
+                'error': 'Admin access required'
+            }), 403
+        
         activities = activity_logger.get_all_activities()
-        return jsonify({'success': True, 'activities': activities})
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-@app.route('/api/activities/suspicious', methods=['GET'])
-@login_required
-def get_suspicious():
-    """Get suspicious activities"""
-    try:
-        activities = activity_logger.get_suspicious_activities()
         return jsonify({'success': True, 'activities': activities})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/alerts/summary', methods=['GET'])
 @login_required
-def get_alert_summary():
-    """Get alert summary with severity breakdown"""
+def get_alerts_summary_api():
+    """Get security alerts summary API (Admin only)"""
     try:
-        summary = detector.get_alert_summary()
-        all_activities = activity_logger.get_all_activities(limit=1000)
-        total_activities = len(all_activities)
-        failed_count = len([a for a in all_activities if a['operation_status'] == 'Failed'])
+        user_id = session.get('user_id')
+        user = user_manager.get_user_by_id(user_id)
         
-        return jsonify({
-            'success': True,
-            'summary': {
-                'total_activities': total_activities,
-                'total_alerts': summary['total_alerts'] or 0,
-                'unresolved_alerts': summary['unresolved_alerts'] or 0,
-                'critical_alerts': summary['critical_alerts'] or 0,
-                'high_alerts': summary['high_alerts'] or 0,
-                'medium_alerts': summary['medium_alerts'] or 0,
-                'failed_operations': failed_count
-            }
-        })
+        if user['role'] != 'Admin':
+            return jsonify({
+                'success': False, 
+                'error': 'Admin access required'
+            }), 403
+        
+        summary = security_detector.get_security_summary()
+        return jsonify({'success': True, 'summary': summary})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
-@app.route('/api/products/latest', methods=['GET'])
+# =====================================================
+# REPORTING ENDPOINTS
+# =====================================================
+
+@app.route('/reports/activities')
 @login_required
-def get_latest_products():
-    products = product_manager.get_all_products()
-    return jsonify({'products': products})
+def activities_report():
+    """Generate activities report"""
+    try:
+        user_id = session.get('user_id')
+        user = user_manager.get_user_by_id(user_id)
+        
+        if user['role'] != 'Admin':
+            return "Access denied", 403
+        
+        activities = activity_logger.get_all_activities(limit=100)
+        
+        report = "DATABASE ACTIVITY MONITORING REPORT\n"
+        report += "=" * 50 + "\n"
+        report += f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+        report += f"User: {user['username']}\n"
+        report += "=" * 50 + "\n\n"
+        
+        for activity in activities:
+            report += f"ID: {activity['activity_id']}\n"
+            report += f"User: {activity['username']} ({activity.get('user_role', 'N/A')})\n"
+            report += f"Operation: {activity['operation_type']} on {activity['table_name']}\n"
+            report += f"Status: {activity['operation_status']}\n"
+            report += f"Time: {activity['access_timestamp']}\n"
+            report += f"Suspicious: {'Yes' if activity['is_suspicious'] else 'No'}\n"
+            if activity['is_suspicious']:
+                report += f"Reason: {activity['suspicious_reasons']}\n"
+            report += "-" * 30 + "\n"
+        
+        return report, 200, {'Content-Type': 'text/plain'}
+        
+    except Exception as e:
+        return str(e), 500
 
-
+@app.route('/reports/suspicious')
+@login_required
+def suspicious_report():
+    """Generate suspicious activities report"""
+    try:
+        user_id = session.get('user_id')
+        user = user_manager.get_user_by_id(user_id)
+        
+        if user['role'] != 'Admin':
+            return "Access denied", 403
+        
+        activities = activity_logger.get_suspicious_activities()
+        
+        report = "SUSPICIOUS ACTIVITIES REPORT\n"
+        report += "=" * 50 + "\n"
+        report += f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+        report += f"Total Suspicious Activities: {len(activities)}\n"
+        report += "=" * 50 + "\n\n"
+        
+        for activity in activities:
+            report += f"ID: {activity['activity_id']}\n"
+            report += f"User: {activity['username']} ({activity.get('user_role', 'N/A')})\n"
+            report += f"Operation: {activity['operation_type']} on {activity['table_name']}\n"
+            report += f"Time: {activity['access_timestamp']}\n"
+            report += f"Details: {activity['operation_details']}\n"
+            report += f"Reasons: {activity['suspicious_reasons']}\n"
+            report += "-" * 40 + "\n"
+        
+        return report, 200, {'Content-Type': 'text/plain'}
+        
+    except Exception as e:
+        return str(e), 500
 
 # =====================================================
-# MAIN
+# MAIN APPLICATION
 # =====================================================
 
 if __name__ == '__main__':
-    # Connect to database
-    if db_connection.connect():
-        print("=" * 50)
-        print("Database Activity Monitoring (DAM) System")
-        print("=" * 50)
-        print("Database connected successfully!")
-        print(f"Server running on http://localhost:5000")
-        print("\nSECURITY FEATURES ENABLED:")
-        print("✓ SQL Injection Prevention (Parameterized Queries)")
-        print("✓ Password Hashing (bcrypt)")
-        print("✓ Role-Based Access Control (RBAC)")
-        print("✓ Brute Force Detection")
-        print("✓ Anomalous Timing Detection")
-        print("=" * 50)
-        app.run(debug=True, host='0.0.0.0', port=5000)
-    else:
-        print("ERROR: Failed to connect to database!")
-        print("Please check your database configuration in the Config class.")
+    print("=" * 60)
+    print("DATABASE ACTIVITY MONITORING (DAM) SYSTEM")
+    print("=" * 60)
+    print("Security Features Implemented:")
+    print("1. Role-Based Access Control (RBAC)")
+    print("2. Brute Force Detection (>5 failed attempts in 5 mins)")
+    print("3. Anomalous Timing Detection (9 AM - 6 PM)")
+    print("4. Guest User Restriction (Read-Only)")
+    print("5. SQL Injection Prevention (Parameterized Queries)")
+    print("6. Password Hashing (bcrypt)")
+    print("=" * 60)
+    print(f"Database: {Config.DB_NAME}")
+    print(f"User: {Config.DB_USER}")
+    print(f"Server: http://localhost:5000")
+    print("=" * 60)
+    
+    # Initialize database connection
+    db = DatabaseConnection()
+    
+    app.run(debug=True, host='0.0.0.0', port=5000)
