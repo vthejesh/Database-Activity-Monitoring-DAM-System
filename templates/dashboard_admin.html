@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>DAM Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- Bootstrap -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+
+    <style>
+        body {
+            background: #0f172a;
+            color: #e5e7eb;
+            font-family: Inter, sans-serif;
+        }
+
+        .card {
+            background: #020617;
+            border: 1px solid #1e293b;
+            border-radius: 12px;
+        }
+
+        .log-box {
+            background: #020617;
+            border-radius: 10px;
+            padding: 12px;
+            height: 420px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 14px;
+        }
+
+        .log-entry {
+            border-left: 4px solid #22c55e;
+            padding: 8px;
+            margin-bottom: 10px;
+            background: #020617;
+        }
+
+        .log-suspicious {
+            border-left-color: #f59e0b;
+            background: #1c1917;
+        }
+
+        .log-failed {
+            border-left-color: #ef4444;
+        }
+
+        .badge-role {
+            background: #1e293b;
+        }
+    </style>
+</head>
+<body>
+
+<nav class="navbar navbar-dark bg-dark px-4">
+    <span class="navbar-brand">
+        <i class="bi bi-shield-lock"></i> DAM SYSTEM
+    </span>
+    <div class="d-flex gap-3 align-items-center">
+        <span id="userInfo"></span>
+        <button class="btn btn-danger btn-sm" onclick="logout()">Logout</button>
+    </div>
+</nav>
+
+<div class="container-fluid mt-4">
+
+    <!-- STATS -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card p-3 text-center">
+                <h6>Total Activities</h6>
+                <h2 id="totalActivities">0</h2>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card p-3 text-center">
+                <h6>Suspicious</h6>
+                <h2 id="totalSuspicious">0</h2>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card p-3 text-center">
+                <h6>Failed</h6>
+                <h2 id="totalFailed">0</h2>
+            </div>
+        </div>
+    </div>
+
+    <!-- LIVE ACTIVITY -->
+    <div class="row">
+        <div class="col-lg-12">
+            <div class="card p-3">
+                <h5 class="mb-3">
+                    <i class="bi bi-broadcast"></i> Live Database Activity
+                </h5>
+                <div id="activityFeed" class="log-box">
+                    Loading activity...
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+let currentUser = null;
+
+document.addEventListener("DOMContentLoaded", () => {
+    loadDashboard();
+    setInterval(loadDashboard, 3000);
+});
+
+async function loadDashboard() {
+    try {
+        const res = await fetch("/api/dashboard-data");
+        if (res.status === 401) {
+            window.location.href = "/";
+            return;
+        }
+
+        const data = await res.json();
+        if (!data.success) return;
+
+        renderUser(data.user);
+        renderActivities(data.activities || []);
+        updateStats(data.activities || []);
+    } catch (e) {
+        console.error("Dashboard error", e);
+    }
+}
+
+function renderUser(user) {
+    currentUser = user;
+    document.getElementById("userInfo").innerHTML = `
+        <span class="badge badge-role">${user.username} (${user.role})</span>
+    `;
+}
+
+function updateStats(activities) {
+    document.getElementById("totalActivities").innerText = activities.length;
+    document.getElementById("totalSuspicious").innerText =
+        activities.filter(a => a.is_suspicious).length;
+    document.getElementById("totalFailed").innerText =
+        activities.filter(a => a.operation_status === "Failed").length;
+}
+
+function renderActivities(activities) {
+    const feed = document.getElementById("activityFeed");
+
+    if (activities.length === 0) {
+        feed.innerHTML = "No activity yet...";
+        return;
+    }
+
+    feed.innerHTML = activities.slice(0, 30).map(a => {
+        let cls = "log-entry";
+        if (a.is_suspicious) cls += " log-suspicious";
+        if (a.operation_status === "Failed") cls += " log-failed";
+
+        return `
+            <div class="${cls}">
+                <div>
+                    <strong>${a.username || "DB_USER"}</strong>
+                    → ${a.operation_type}
+                    <span class="text-muted">(${a.table_name})</span>
+                </div>
+                <div class="text-muted small">
+                    ${a.operation_details || ""}
+                </div>
+                <div class="text-muted small">
+                    ${new Date(a.access_timestamp).toLocaleString()}
+                </div>
+                ${a.suspicious_reasons ? `
+                    <div class="text-warning small">
+                        ⚠ ${a.suspicious_reasons}
+                    </div>` : ""}
+            </div>
+        `;
+    }).join("");
+}
+
+async function logout() {
+    await fetch("/api/logout", { method: "POST" });
+    window.location.href = "/";
+}
+</script>
+
+</body>
+</html>
