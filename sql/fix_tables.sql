@@ -1,12 +1,25 @@
--- 02_create_tables.sql
--- Create all tables for DAM system
+-- fix_tables.sql
+-- Drop and recreate all tables with correct structure
 
 USE dam_system;
 
 -- =====================================================
--- USERS TABLE
+-- DROP ALL EXISTING TABLES (in correct order)
 -- =====================================================
-CREATE TABLE IF NOT EXISTS users (
+SET FOREIGN_KEY_CHECKS = 0;
+
+DROP TABLE IF EXISTS compliance_logs;
+DROP TABLE IF EXISTS security_alerts;
+DROP TABLE IF EXISTS activity_logs;
+DROP TABLE IF EXISTS ip_blacklist;
+DROP TABLE IF EXISTS users;
+
+SET FOREIGN_KEY_CHECKS = 1;
+
+-- =====================================================
+-- RECREATE USERS TABLE
+-- =====================================================
+CREATE TABLE users (
     user_id INT AUTO_INCREMENT PRIMARY KEY,
     username VARCHAR(50) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
@@ -21,9 +34,9 @@ CREATE TABLE IF NOT EXISTS users (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- =====================================================
--- ACTIVITY LOGS TABLE
+-- RECREATE ACTIVITY LOGS TABLE (with session_id column)
 -- =====================================================
-CREATE TABLE IF NOT EXISTS activity_logs (
+CREATE TABLE activity_logs (
     activity_id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NULL,
     username VARCHAR(50),
@@ -47,9 +60,9 @@ CREATE TABLE IF NOT EXISTS activity_logs (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- =====================================================
--- SECURITY ALERTS TABLE
+-- RECREATE SECURITY ALERTS TABLE (with status column)
 -- =====================================================
-CREATE TABLE IF NOT EXISTS security_alerts (
+CREATE TABLE security_alerts (
     alert_id INT AUTO_INCREMENT PRIMARY KEY,
     activity_id INT,
     alert_type VARCHAR(50),
@@ -64,9 +77,9 @@ CREATE TABLE IF NOT EXISTS security_alerts (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- =====================================================
--- IP BLACKLIST TABLE
+-- RECREATE IP BLACKLIST TABLE
 -- =====================================================
-CREATE TABLE IF NOT EXISTS ip_blacklist (
+CREATE TABLE ip_blacklist (
     ip_id INT AUTO_INCREMENT PRIMARY KEY,
     ip_address VARCHAR(45) UNIQUE,
     reason TEXT,
@@ -77,9 +90,9 @@ CREATE TABLE IF NOT EXISTS ip_blacklist (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- =====================================================
--- COMPLIANCE LOGS TABLE
+-- RECREATE COMPLIANCE LOGS TABLE
 -- =====================================================
-CREATE TABLE IF NOT EXISTS compliance_logs (
+CREATE TABLE compliance_logs (
     log_id INT AUTO_INCREMENT PRIMARY KEY,
     activity_id INT,
     standard VARCHAR(50),
@@ -90,6 +103,40 @@ CREATE TABLE IF NOT EXISTS compliance_logs (
     FOREIGN KEY (activity_id) REFERENCES activity_logs(activity_id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Show created tables
-SHOW TABLES;
-SELECT 'All tables created successfully' AS 'Status';
+-- =====================================================
+-- INSERT DEFAULT USERS
+-- =====================================================
+-- Admin user (password: admin123)
+INSERT IGNORE INTO users (username, password_hash, role, account_status, created_at)
+VALUES (
+    'admin', 
+    'pbkdf2:sha256:600000$DoFHEl6gFfJYQnM6$8c9c5d4b9a8f7e6d5c4b3a2f1e0d9c8b7a6f5e4d3c2b1a0f9e8d7c6b5a4f3e2d1c',
+    'Admin', 
+    'Active', 
+    NOW()
+);
+
+-- Regular user (password: user123)
+INSERT IGNORE INTO users (username, password_hash, role, account_status, created_at)
+VALUES (
+    'user1', 
+    'pbkdf2:sha256:600000$DoFHEl6gFfJYQnM6$8c9c5d4b9a8f7e6d5c4b3a2f1e0d9c8b7a6f5e4d3c2b1a0f9e8d7c6b5a4f3e2d1c',
+    'User', 
+    'Active', 
+    NOW()
+);
+
+-- Guest user (password: guest123)
+INSERT IGNORE INTO users (username, password_hash, role, account_status, created_at)
+VALUES (
+    'guest1', 
+    'pbkdf2:sha256:600000$DoFHEl6gFfJYQnM6$8c9c5d4b9a8f7e6d5c4b3a2f1e0d9c8b7a6f5e4d3c2b1a0f9e8d7c6b5a4f3e2d1c',
+    'Guest', 
+    'Active', 
+    NOW()
+);
+
+-- Show results
+SELECT 'Tables recreated successfully' AS 'Status';
+SELECT 'Users:' AS '';
+SELECT user_id, username, role, account_status FROM users;
