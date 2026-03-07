@@ -1031,6 +1031,7 @@ def ingest_agent_activity():
 @app.route("/api/agent/bulk", methods=["POST"])
 def ingest_bulk_activities():
     """Bulk ingestion endpoint for high-volume agents"""
+    
     activities = request.json.get('activities', [])
 
     results = []
