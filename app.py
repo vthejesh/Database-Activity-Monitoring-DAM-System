@@ -844,6 +844,7 @@ def api_logout():
 
 
 @app.route("/api/dashboard-data")
+
 @login_required
 def api_dashboard_data():
     user = user_mgr.get_by_id(session["user_id"])
