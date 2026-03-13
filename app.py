@@ -1027,6 +1027,7 @@ def ingest_agent_activity():
         "activity_id": aid,
         "anomalies_detected": len(anomalies) > 0
     })
+    
 
 
 @app.route("/api/agent/bulk", methods=["POST"])
