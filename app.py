@@ -28,7 +28,6 @@ from mysql.connector import pooling
 # CONFIG
 # =====================================================
 
-
 class Config:
     DB_HOST = "localhost"
     DB_USER = "root"
