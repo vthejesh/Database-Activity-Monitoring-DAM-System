@@ -1,351 +1,263 @@
-<!-- templates/login.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DAM System - Login</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-        
-        body {
-            background: linear-gradient(135deg, #4361ee 0%, #3a0ca3 100%);
-            height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        .login-container {
-            width: 100%;
-            max-width: 400px;
-            padding: 20px;
-        }
-        
-        .login-card {
-            background: white;
-            border-radius: 15px;
-            padding: 40px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
-        }
-        
-        .logo {
-            text-align: center;
-            margin-bottom: 30px;
-        }
-        
-        .logo h1 {
-            color: #4361ee;
-            font-size: 28px;
-            margin-bottom: 5px;
-        }
-        
-        .logo p {
-            color: #666;
-            font-size: 14px;
-        }
-        
-        .form-group {
-            margin-bottom: 20px;
-        }
-        
-        .form-group label {
-            display: block;
-            margin-bottom: 5px;
-            color: #333;
-            font-weight: 600;
-        }
-        
-        .form-control {
-            width: 100%;
-            padding: 12px 15px;
-            border: 2px solid #ddd;
-            border-radius: 8px;
-            font-size: 16px;
-            transition: border-color 0.3s;
-        }
-        
-        .form-control:focus {
-            outline: none;
-            border-color: #4361ee;
-        }
-        
-        .btn {
-            width: 100%;
-            padding: 14px;
-            border: none;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-        
-        .btn-primary {
-            background: linear-gradient(135deg, #4361ee 0%, #3a0ca3 100%);
-            color: white;
-        }
-        
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(67, 97, 238, 0.4);
-        }
-        
-        .btn-secondary {
-            background: #f8f9fa;
-            color: #666;
-            border: 2px solid #ddd;
-            margin-top: 10px;
-        }
-        
-        .btn-secondary:hover {
-            background: #e9ecef;
-            border-color: #4361ee;
-        }
-        
-        .divider {
-            text-align: center;
-            margin: 20px 0;
-            color: #999;
-            position: relative;
-        }
-        
-        .divider::before,
-        .divider::after {
-            content: '';
-            position: absolute;
-            top: 50%;
-            width: 45%;
-            height: 1px;
-            background: #ddd;
-        }
-        
-        .divider::before {
-            left: 0;
-        }
-        
-        .divider::after {
-            right: 0;
-        }
-        
-        .alert {
-            padding: 12px 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            display: none;
-        }
-        
-        .alert-danger {
-            background: #fee;
-            color: #c00;
-            border: 1px solid #fcc;
-        }
-        
-        .alert-success {
-            background: #efe;
-            color: #0a0;
-            border: 1px solid #cfc;
-        }
-        
-        .features {
-            margin-top: 30px;
-            padding-top: 20px;
-            border-top: 1px solid #eee;
-        }
-        
-        .features h4 {
-            color: #333;
-            margin-bottom: 15px;
-            font-size: 16px;
-        }
-        
-        .feature-item {
-            display: flex;
-            align-items: center;
-            margin-bottom: 10px;
-            font-size: 14px;
-            color: #666;
-        }
-        
-        .feature-item::before {
-            content: '✓';
-            color: #28a745;
-            margin-right: 10px;
-            font-weight: bold;
-        }
-        
-        .spinner {
-            display: none;
-            width: 20px;
-            height: 20px;
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid #4361ee;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin: 0 auto;
-        }
-        
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-    </style>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DAM System · Secure Access</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#040810;--surface:#0a1628;--border:#1a2f4e;--accent:#00d4ff;
+  --accent2:#ff3860;--text:#c8d6e5;--muted:#4a6080;--success:#00e676;
+  --warn:#ffab00;--font-mono:'IBM Plex Mono',monospace;--font:'IBM Plex Sans',sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;background:var(--bg);font-family:var(--font);overflow:hidden}
+
+/* Grid background */
+body::before{
+  content:'';position:fixed;inset:0;
+  background-image:
+    linear-gradient(rgba(0,212,255,.04) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(0,212,255,.04) 1px,transparent 1px);
+  background-size:48px 48px;pointer-events:none;z-index:0;
+}
+/* Corner accents */
+body::after{
+  content:'';position:fixed;top:0;left:0;width:300px;height:300px;
+  background:radial-gradient(ellipse at top left,rgba(0,212,255,.08),transparent 70%);
+  pointer-events:none;z-index:0;
+}
+
+.page{
+  position:relative;z-index:1;height:100vh;display:grid;
+  grid-template-columns:1fr 480px;
+}
+
+/* ── LEFT PANEL ─────────────────────────────────────── */
+.left{
+  display:flex;flex-direction:column;justify-content:center;
+  padding:60px;border-right:1px solid var(--border);
+  background:linear-gradient(135deg,rgba(0,212,255,.02),transparent);
+}
+.badge{
+  display:inline-flex;align-items:center;gap:8px;
+  background:rgba(0,212,255,.08);border:1px solid rgba(0,212,255,.2);
+  border-radius:4px;padding:6px 12px;font-family:var(--font-mono);
+  font-size:11px;color:var(--accent);letter-spacing:2px;margin-bottom:40px;width:fit-content;
+}
+.badge::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--success);box-shadow:0 0 8px var(--success);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+.brand{font-size:52px;font-weight:600;line-height:1.1;color:#fff;margin-bottom:16px;letter-spacing:-1px}
+.brand span{color:var(--accent)}
+.tagline{font-size:16px;color:var(--muted);line-height:1.7;max-width:440px;margin-bottom:48px}
+
+.stats-row{display:flex;gap:32px}
+.stat{border-left:2px solid var(--border);padding-left:16px}
+.stat-val{font-family:var(--font-mono);font-size:28px;font-weight:600;color:var(--accent);line-height:1}
+.stat-label{font-size:11px;color:var(--muted);margin-top:4px;letter-spacing:1px;text-transform:uppercase}
+
+/* Animated scan line */
+.scanline{
+  position:absolute;top:0;left:50%;width:1px;height:0;
+  background:linear-gradient(to bottom,transparent,rgba(0,212,255,.4),transparent);
+  animation:scan 4s linear infinite;
+}
+@keyframes scan{0%{top:0;height:0}50%{height:200px}100%{top:100%;height:0}}
+
+/* ── RIGHT PANEL ─────────────────────────────────────── */
+.right{
+  display:flex;align-items:center;justify-content:center;
+  padding:48px;background:var(--surface);
+}
+.login-card{width:100%;max-width:380px}
+
+.card-header{margin-bottom:36px}
+.card-header h2{font-family:var(--font-mono);font-size:13px;color:var(--muted);letter-spacing:3px;text-transform:uppercase;margin-bottom:8px}
+.card-header h1{font-size:26px;font-weight:600;color:#fff}
+
+.field{margin-bottom:20px}
+.field label{display:block;font-family:var(--font-mono);font-size:11px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-bottom:8px}
+.input-wrap{position:relative}
+.input-wrap input{
+  width:100%;background:rgba(0,0,0,.4);border:1px solid var(--border);
+  border-radius:4px;padding:12px 16px 12px 44px;
+  color:var(--text);font-family:var(--font-mono);font-size:14px;
+  outline:none;transition:border-color .2s,box-shadow .2s;
+}
+.input-wrap input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(0,212,255,.1)}
+.input-wrap .icon{
+  position:absolute;left:14px;top:50%;transform:translateY(-50%);
+  color:var(--muted);font-size:16px;
+}
+.input-wrap input:focus+.icon,.input-wrap .icon{pointer-events:none}
+
+.btn-login{
+  width:100%;padding:14px;background:var(--accent);border:none;border-radius:4px;
+  color:#040810;font-family:var(--font-mono);font-size:13px;font-weight:600;
+  letter-spacing:2px;text-transform:uppercase;cursor:pointer;position:relative;
+  overflow:hidden;transition:all .2s;margin-top:8px;
+}
+.btn-login::before{
+  content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.2),transparent);
+  transform:translateX(-100%);transition:transform .4s;
+}
+.btn-login:hover::before{transform:translateX(100%)}
+.btn-login:hover{background:#00eeff;transform:translateY(-1px);box-shadow:0 4px 20px rgba(0,212,255,.3)}
+.btn-login:active{transform:translateY(0)}
+.btn-login.loading{opacity:.7;pointer-events:none}
+
+.msg{
+  margin-top:16px;padding:10px 14px;border-radius:4px;
+  font-family:var(--font-mono);font-size:12px;display:none;
+}
+.msg.error{background:rgba(255,56,96,.1);border:1px solid rgba(255,56,96,.3);color:var(--accent2)}
+.msg.info{background:rgba(0,212,255,.1);border:1px solid rgba(0,212,255,.3);color:var(--accent)}
+
+.divider{display:flex;align-items:center;gap:12px;margin:24px 0}
+.divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--border)}
+.divider span{font-family:var(--font-mono);font-size:10px;color:var(--muted);letter-spacing:2px}
+
+.demo-creds{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.cred-btn{
+  padding:8px;background:transparent;border:1px solid var(--border);border-radius:4px;
+  color:var(--muted);font-family:var(--font-mono);font-size:10px;cursor:pointer;
+  transition:all .2s;text-align:center;
+}
+.cred-btn:hover{border-color:var(--accent);color:var(--accent);background:rgba(0,212,255,.05)}
+.cred-btn strong{display:block;color:var(--text);margin-bottom:2px}
+
+/* Corner brackets on card */
+.login-card{position:relative}
+.login-card::before,.login-card::after{
+  content:'';position:absolute;width:20px;height:20px;border-color:var(--accent);border-style:solid;opacity:.4;
+}
+.login-card::before{top:-8px;left:-8px;border-width:1px 0 0 1px}
+.login-card::after{bottom:-8px;right:-8px;border-width:0 1px 1px 0}
+
+/* Terminal blinking cursor */
+.terminal-line{
+  font-family:var(--font-mono);font-size:11px;color:var(--muted);margin-top:24px;
+  display:flex;align-items:center;gap:6px;
+}
+.cursor{display:inline-block;width:7px;height:13px;background:var(--accent);animation:blink .8s step-end infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+
+@media(max-width:900px){
+  .page{grid-template-columns:1fr}.left{display:none}.right{padding:32px}
+}
+</style>
 </head>
 <body>
-    <div class="login-container">
-        <div class="login-card">
-            <div class="logo">
-                <h1>🔐 DAM System</h1>
-                <p>Database Activity Monitoring - Enterprise Edition</p>
-            </div>
-            
-            <div id="errorAlert" class="alert alert-danger"></div>
-            <div id="successAlert" class="alert alert-success"></div>
-            
-            <form id="loginForm">
-                <div class="form-group">
-                    <label for="username">Username</label>
-                    <input type="text" id="username" class="form-control" placeholder="Enter username" required>
-                </div>
-                
-                <div class="form-group">
-                    <label for="password">Password</label>
-                    <input type="password" id="password" class="form-control" placeholder="Enter password" required>
-                </div>
-                
-                <button type="submit" class="btn btn-primary" id="loginBtn">
-                    <span id="loginText">Secure Login</span>
-                    <div id="loginSpinner" class="spinner"></div>
-                </button>
-                
-                <div class="divider">OR</div>
-                
-                <button type="button" class="btn btn-secondary" id="guestBtn">
-                    <span id="guestText">Login as Guest (Read-Only Access)</span>
-                    <div id="guestSpinner" class="spinner"></div>
-                </button>
-            </form>
-            
-            <div class="features">
-                <h4>Security Features</h4>
-                <div class="feature-item">Enterprise Connection Pooling</div>
-                <div class="feature-item">Real-time Activity Monitoring</div>
-                <div class="feature-item">Policy-based Security Engine</div>
-                <div class="feature-item">RBAC with Multi-level Roles</div>
-            </div>
-        </div>
+<div class="page">
+  <!-- Left -->
+  <div class="left">
+    <div class="scanline"></div>
+    <div class="badge">● SYSTEM ONLINE</div>
+    <div class="brand">Database<br>Activity<br><span>Monitor</span></div>
+    <p class="tagline">Enterprise-grade database security monitoring. Real-time threat detection, compliance reporting, and behavioral analytics.</p>
+    <div class="stats-row">
+      <div class="stat"><div class="stat-val" id="s-monitored">—</div><div class="stat-label">Databases</div></div>
+      <div class="stat"><div class="stat-val" id="s-threats">—</div><div class="stat-label">Threats Today</div></div>
+      <div class="stat"><div class="stat-val" id="s-events">—</div><div class="stat-label">Events Logged</div></div>
     </div>
+  </div>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const loginForm = document.getElementById('loginForm');
-            const guestBtn = document.getElementById('guestBtn');
-            const loginBtn = document.getElementById('loginBtn');
-            const errorAlert = document.getElementById('errorAlert');
-            const successAlert = document.getElementById('successAlert');
-            
-            // Hide alerts initially
-            errorAlert.style.display = 'none';
-            successAlert.style.display = 'none';
-            
-            // Test server connection
-            testConnection();
-            
-            // Handle form submission
-            loginForm.addEventListener('submit', function(e) {
-                e.preventDefault();
-                login(false);
-            });
-            
-            // Handle guest login
-            guestBtn.addEventListener('click', function() {
-                login(true);
-            });
-            
-            function login(isGuest) {
-                // Show loading
-                if (isGuest) {
-                    document.getElementById('guestText').style.display = 'none';
-                    document.getElementById('guestSpinner').style.display = 'block';
-                    guestBtn.disabled = true;
-                } else {
-                    document.getElementById('loginText').style.display = 'none';
-                    document.getElementById('loginSpinner').style.display = 'block';
-                    loginBtn.disabled = true;
-                }
-                
-                // Hide alerts
-                errorAlert.style.display = 'none';
-                successAlert.style.display = 'none';
-                
-                const data = isGuest ? 
-                    { guest_mode: true } :
-                    {
-                        username: document.getElementById('username').value.trim(),
-                        password: document.getElementById('password').value
-                    };
-                
-                // Send login request
-                fetch('/api/login', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(data)
-                })
-                .then(response => response.json())
-                .then(result => {
-                    console.log('Login result:', result);
-                    
-                    if (result.success) {
-                        // Show success
-                        successAlert.textContent = result.message;
-                        successAlert.style.display = 'block';
-                        
-                        // Redirect after delay
-                        setTimeout(() => {
-                            window.location.href = result.redirect || '/dashboard';
-                        }, 1000);
-                    } else {
-                        // Show error
-                        errorAlert.textContent = result.message || 'Login failed';
-                        errorAlert.style.display = 'block';
-                        resetButtons();
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    errorAlert.textContent = 'Server connection error. Please try again.';
-                    errorAlert.style.display = 'block';
-                    resetButtons();
-                });
-            }
-            
-            function resetButtons() {
-                document.getElementById('guestText').style.display = 'inline';
-                document.getElementById('guestSpinner').style.display = 'none';
-                document.getElementById('loginText').style.display = 'inline';
-                document.getElementById('loginSpinner').style.display = 'none';
-                guestBtn.disabled = false;
-                loginBtn.disabled = false;
-            }
-            
-            function testConnection() {
-                fetch('/api/health')
-                    .then(response => response.json())
-                    .then(data => {
-                        console.log('Server health:', data);
-                    })
-                    .catch(error => {
-                        console.log('Connection test:', error.message);
-                    });
-            }
-        });
-    </script>
+  <!-- Right -->
+  <div class="right">
+    <div class="login-card">
+      <div class="card-header">
+        <h2>Secure Access Portal</h2>
+        <h1>Sign In</h1>
+      </div>
+
+      <form id="loginForm">
+        <div class="field">
+          <label>Username</label>
+          <div class="input-wrap">
+            <input type="text" id="username" placeholder="Enter username" autocomplete="off" required>
+            <svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+          </div>
+        </div>
+        <div class="field">
+          <label>Password</label>
+          <div class="input-wrap">
+            <input type="password" id="password" placeholder="••••••••" required>
+            <svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+          </div>
+        </div>
+
+        <button class="btn-login" type="submit" id="loginBtn">AUTHENTICATE</button>
+        <div class="msg" id="msg"></div>
+      </form>
+
+      <div class="divider"><span>DEMO ACCOUNTS</span></div>
+      <div class="demo-creds">
+        <button class="cred-btn" onclick="fillCreds('admin','admin123')"><strong>admin</strong>Admin</button>
+        <button class="cred-btn" onclick="fillCreds('user1','user123')"><strong>user1</strong>User</button>
+        <button class="cred-btn" onclick="fillCreds('guest1','guest123')"><strong>guest1</strong>Guest</button>
+      </div>
+
+      <div class="terminal-line">
+        <span>$</span><span id="termText">awaiting credentials</span><span class="cursor"></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function fillCreds(u,p){
+  document.getElementById('username').value=u;
+  document.getElementById('password').value=p;
+  document.getElementById('termText').textContent=`credentials loaded: ${u}`;
+}
+
+// Fetch live stats
+fetch('/api/stats').then(r=>r.json()).then(d=>{
+  if(d.stats){
+    document.getElementById('s-events').textContent=(d.stats.total||0).toLocaleString();
+    document.getElementById('s-threats').textContent=(d.stats.suspicious||0).toLocaleString();
+    document.getElementById('s-monitored').textContent='5';
+  }
+}).catch(()=>{
+  document.getElementById('s-events').textContent='—';
+  document.getElementById('s-threats').textContent='—';
+  document.getElementById('s-monitored').textContent='—';
+});
+
+document.getElementById('loginForm').addEventListener('submit',async e=>{
+  e.preventDefault();
+  const btn=document.getElementById('loginBtn');
+  const msg=document.getElementById('msg');
+  const term=document.getElementById('termText');
+  btn.textContent='AUTHENTICATING...';btn.classList.add('loading');
+  msg.style.display='none';
+  term.textContent='verifying credentials...';
+
+  try{
+    const r=await fetch('/api/login',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({username:document.getElementById('username').value,password:document.getElementById('password').value})
+    });
+    const d=await r.json();
+    if(d.success){
+      term.textContent='access granted → redirecting';
+      btn.textContent='ACCESS GRANTED ✓';btn.style.background='var(--success)';
+      setTimeout(()=>window.location.href=d.redirect,600);
+    } else if(d.locked){
+      msg.textContent='Account locked. Try again later.';msg.className='msg error';msg.style.display='block';
+      term.textContent='account locked';btn.textContent='AUTHENTICATE';btn.classList.remove('loading');
+    } else {
+      msg.textContent='Invalid credentials. Access denied.';msg.className='msg error';msg.style.display='block';
+      term.textContent='authentication failed';btn.textContent='AUTHENTICATE';btn.classList.remove('loading');
+      document.getElementById('password').value='';
+    }
+  } catch(err){
+    msg.textContent='Connection error. Retry.';msg.className='msg info';msg.style.display='block';
+    btn.textContent='AUTHENTICATE';btn.classList.remove('loading');term.textContent='connection error';
+  }
+});
+</script>
 </body>
 </html>

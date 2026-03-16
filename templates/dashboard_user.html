@@ -1,108 +1,115 @@
+<!-- dashboard_user.html -->
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>User Dashboard | DAM</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DAM · My Activity</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500&family=Syne:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#040c1a;--surface:#071428;--card:#0a1e38;--border:#112240;--accent:#00d4ff;--red:#ef4444;--green:#10b981;--amber:#f59e0b;--text:#c8d6e5;--muted:#4a6080;--font:'Syne',sans-serif;--mono:'IBM Plex Mono',monospace}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:var(--font);min-height:100vh}
+.page{max-width:1000px;margin:0 auto;padding:32px 24px}
+.topbar{display:flex;align-items:center;margin-bottom:32px;gap:12px}
+.back-btn{background:var(--card);border:1px solid var(--border);border-radius:6px;padding:8px 14px;color:var(--muted);font-size:13px;cursor:pointer;transition:all .15s;text-decoration:none}
+.back-btn:hover{color:var(--accent);border-color:var(--accent)}
+h1{font-size:22px;font-weight:700;color:#fff;flex:1}
+.user-badge{background:rgba(0,212,255,.1);border:1px solid rgba(0,212,255,.2);border-radius:20px;padding:5px 14px;font-family:var(--mono);font-size:11px;color:var(--accent)}
+.logout-btn{background:transparent;border:1px solid var(--border);border-radius:6px;padding:8px 14px;color:var(--muted);font-size:13px;cursor:pointer;transition:all .15s}
+.logout-btn:hover{border-color:var(--red);color:var(--red)}
+
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:28px}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:20px}
+.stat-label{font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:2px;margin-bottom:8px;text-transform:uppercase}
+.stat-val{font-size:32px;font-weight:700;color:var(--accent)}
+
+.section-title{font-size:15px;font-weight:600;color:#fff;margin-bottom:12px}
+.table-card{background:var(--card);border:1px solid var(--border);border-radius:8px;overflow:hidden}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{background:var(--surface);padding:10px 16px;text-align:left;font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;border-bottom:1px solid var(--border)}
+td{padding:10px 16px;border-bottom:1px solid rgba(17,34,64,.6)}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(0,212,255,.02)}
+.op-badge{display:inline-block;padding:2px 8px;border-radius:3px;font-family:var(--mono);font-size:10px}
+.op-select{background:rgba(0,212,255,.1);color:var(--accent)}
+.op-login{background:rgba(124,58,237,.1);color:#a78bfa}
+.op-logout{background:rgba(75,85,99,.1);color:#9ca3af}
+.op-update{background:rgba(245,158,11,.1);color:var(--amber)}
+.empty{padding:40px;text-align:center;color:var(--muted)}
+
+.info-box{background:rgba(0,212,255,.05);border:1px solid rgba(0,212,255,.15);border-radius:8px;padding:16px;margin-bottom:20px;font-size:13px;color:var(--muted);line-height:1.6}
+.info-box strong{color:var(--accent)}
+</style>
 </head>
-<body class="bg-light">
+<body>
+<div class="page">
+  <div class="topbar">
+    <h1>My Activity</h1>
+    <div class="user-badge" id="userBadge">USER</div>
+    <button class="logout-btn" onclick="logout()">Sign Out</button>
+  </div>
 
-<nav class="navbar navbar-dark bg-primary px-4">
-    <span class="navbar-brand">DAM – User Dashboard</span>
-    <button onclick="logout()" class="btn btn-light btn-sm">Logout</button>
-</nav>
+  <div class="info-box">
+    Logged in as <strong id="usernameDisplay">—</strong>. You have read access to non-sensitive tables.
+    Contact your administrator to request elevated permissions.
+  </div>
 
-<div class="container mt-4">
-
-    <!-- STATS -->
-    <div class="row mb-4">
-        <div class="col-md-4">
-            <div class="card shadow-sm text-center">
-                <div class="card-body">
-                    <h6>Total Queries</h6>
-                    <h2 id="totalQueries">0</h2>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-4">
-            <div class="card shadow-sm text-center">
-                <div class="card-body">
-                    <h6>Suspicious Actions</h6>
-                    <h2 id="suspiciousCount">0</h2>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-4">
-            <div class="card shadow-sm text-center">
-                <div class="card-body">
-                    <h6>Last Activity</h6>
-                    <p id="lastActivity">—</p>
-                </div>
-            </div>
-        </div>
+  <div class="cards">
+    <div class="stat-card">
+      <div class="stat-label">My Sessions</div>
+      <div class="stat-val" id="myTotal">—</div>
     </div>
-
-    <!-- ACTIVITY TABLE -->
-    <div class="card shadow-sm">
-        <div class="card-header bg-dark text-white">
-            Your Database Activity
-        </div>
-        <div class="card-body p-0">
-            <table class="table table-striped mb-0">
-                <thead>
-                    <tr>
-                        <th>Operation</th>
-                        <th>Table</th>
-                        <th>Status</th>
-                        <th>Time</th>
-                    </tr>
-                </thead>
-                <tbody id="activityTable">
-                    <tr><td colspan="4" class="text-center">Loading…</td></tr>
-                </tbody>
-            </table>
-        </div>
+    <div class="stat-card">
+      <div class="stat-label">Last Login</div>
+      <div class="stat-val" style="font-size:18px;padding-top:7px" id="lastLogin">—</div>
     </div>
+    <div class="stat-card">
+      <div class="stat-label">Access Level</div>
+      <div class="stat-val" style="font-size:22px;color:var(--green)">User</div>
+    </div>
+  </div>
 
+  <div class="section-title">Recent Activity</div>
+  <div class="table-card">
+    <table>
+      <thead><tr><th>Operation</th><th>Table</th><th>Status</th><th>IP</th><th>Time</th></tr></thead>
+      <tbody id="actTbody"><tr><td colspan="5" class="empty">Loading…</td></tr></tbody>
+    </table>
+  </div>
 </div>
 
 <script>
-async function loadUserActivity() {
-    const res = await fetch("/api/user/activities");
-    const data = await res.json();
-
-    let total = data.activities.length;
-    let suspicious = 0;
-    let last = "—";
-
-    const tbody = document.getElementById("activityTable");
-    tbody.innerHTML = "";
-
-    data.activities.forEach((a, i) => {
-        if (a.is_suspicious) suspicious++;
-        if (i === 0) last = a.access_timestamp;
-
-        tbody.innerHTML += `
-            <tr>
-                <td>${a.operation_type}</td>
-                <td>${a.table_name}</td>
-                <td>${a.operation_status}</td>
-                <td>${a.access_timestamp}</td>
-            </tr>`;
-    });
-
-    document.getElementById("totalQueries").innerText = total;
-    document.getElementById("suspiciousCount").innerText = suspicious;
-    document.getElementById("lastActivity").innerText = last;
+async function load(){
+  try{
+    const d=await (await fetch('/api/dashboard-data')).json();
+    if(d.user){
+      document.getElementById('usernameDisplay').textContent=d.user.username||'—';
+      document.getElementById('userBadge').textContent=d.user.role||'USER';
+    }
+    const acts=await (await fetch('/api/user/activities')).json();
+    const rows=acts.activities||[];
+    document.getElementById('myTotal').textContent=rows.length;
+    if(rows.length){
+      const last=rows[0].access_timestamp;
+      document.getElementById('lastLogin').textContent=last?new Date(last).toLocaleDateString('en-IN'):'—';
+    }
+    const tbody=document.getElementById('actTbody');
+    if(!rows.length){tbody.innerHTML='<tr><td colspan="5" class="empty">No activity recorded</td></tr>';return}
+    tbody.innerHTML=rows.map(r=>{
+      const opC='op-'+(r.operation_type||'').toLowerCase();
+      const ts=r.access_timestamp?new Date(r.access_timestamp).toLocaleString('en-IN',{hour12:false}):'—';
+      return `<tr>
+        <td><span class="op-badge ${opC}">${r.operation_type||'—'}</span></td>
+        <td style="font-family:var(--mono);font-size:12px">${r.table_name||'—'}</td>
+        <td style="color:${r.operation_status==='Success'?'var(--green)':'var(--red)';font-size:13px">${r.operation_status||'—'}</td>
+        <td style="font-family:var(--mono);font-size:11px;color:var(--muted)">${r.ip_address||'—'}</td>
+        <td style="font-family:var(--mono);font-size:11px;color:var(--muted)">${ts}</td>
+      </tr>`;
+    }).join('');
+  }catch(e){console.error(e)}
 }
-
-function logout() {
-    fetch("/api/logout", {method: "POST"}).then(() => window.location = "/");
-}
-
-loadUserActivity();
+async function logout(){await fetch('/api/logout',{method:'POST'});window.location.href='/'}
+load();
 </script>
-
 </body>
 </html>

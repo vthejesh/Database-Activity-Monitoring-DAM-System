@@ -1,48 +1,45 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Guest Dashboard | DAM</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DAM · Guest View</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Syne:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#040c1a;--surface:#071428;--card:#0a1e38;--border:#112240;--accent:#00d4ff;--muted:#4a6080;--green:#10b981;--font:'Syne',sans-serif;--mono:'IBM Plex Mono',monospace}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:#c8d6e5;font-family:var(--font);min-height:100vh;display:flex;align-items:center;justify-content:center}
+.container{max-width:500px;width:100%;padding:32px 24px;text-align:center}
+.lock-icon{font-size:56px;margin-bottom:24px;display:block}
+h1{font-size:26px;font-weight:700;color:#fff;margin-bottom:8px}
+p{color:var(--muted);font-size:14px;line-height:1.6;margin-bottom:28px}
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:28px}
+.stat{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:18px}
+.stat-val{font-size:28px;font-weight:700;color:var(--accent);font-family:var(--mono)}
+.stat-label{font-size:11px;color:var(--muted);margin-top:4px;font-family:var(--mono);text-transform:uppercase;letter-spacing:1px}
+.badge-guest{display:inline-block;background:rgba(0,212,255,.08);border:1px solid rgba(0,212,255,.2);border-radius:20px;padding:5px 16px;font-family:var(--mono);font-size:11px;color:var(--accent);margin-bottom:20px;letter-spacing:2px}
+.btn{display:inline-block;padding:11px 28px;border-radius:5px;font-family:var(--mono);font-size:12px;letter-spacing:2px;cursor:pointer;border:none;transition:all .2s;margin:4px}
+.btn-out{background:transparent;border:1px solid var(--border);color:var(--muted)}
+.btn-out:hover{border-color:#ef4444;color:#ef4444}
+</style>
 </head>
-<body class="bg-light">
-
-<nav class="navbar navbar-dark bg-secondary px-4">
-    <span class="navbar-brand">DAM – Guest Dashboard</span>
-    <button onclick="logout()" class="btn btn-light btn-sm">Logout</button>
-</nav>
-
-<div class="container mt-5">
-
-    <div class="card shadow-sm text-center">
-        <div class="card-body">
-            <h4>System Status</h4>
-            
-            <h2 class="text-success">Running ✅</h2>
-            <hr>
-            <h6>Total Database Activities</h6>
-            <h1 id="totalActivities">0</h1>
-            <p class="text-muted mt-3">
-                Guest access is <strong>read-only</strong>.  
-                Detailed logs and SQL text are restricted.
-            </p>
-        </div>
-    </div>
-
+<body>
+<div class="container">
+  <span class="lock-icon">🔒</span>
+  <div class="badge-guest">GUEST ACCESS</div>
+  <h1>Read-Only View</h1>
+  <p>You are logged in with guest privileges. You can view summary statistics only. Contact your administrator to request elevated access.</p>
+  <div class="stats-grid">
+    <div class="stat"><div class="stat-val" id="total">—</div><div class="stat-label">Total Events</div></div>
+    <div class="stat"><div class="stat-val" id="mine">—</div><div class="stat-label">My Activities</div></div>
+  </div>
+  <button class="btn btn-out" onclick="logout()">Sign Out</button>
 </div>
-
 <script>
-async function loadGuestData() {
-    const res = await fetch("/api/guest/summary");
-    const data = await res.json();
-    document.getElementById("totalActivities").innerText = data.total_activities;
-}
-
-function logout() {
-    fetch("/api/logout", {method: "POST"}).then(() => window.location = "/");
-}
-
-loadGuestData();
+fetch('/api/guest/summary').then(r=>r.json()).then(d=>{
+  document.getElementById('total').textContent=(d.total_activities||0).toLocaleString();
+  document.getElementById('mine').textContent=(d.my_activities||0).toLocaleString();
+});
+async function logout(){await fetch('/api/logout',{method:'POST'});window.location.href='/'}
 </script>
-
 </body>
 </html>

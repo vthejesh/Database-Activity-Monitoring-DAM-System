@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DAM · Compliance</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500&family=Syne:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#040c1a;--surface:#071428;--card:#0a1e38;--border:#112240;--accent:#00d4ff;--red:#ef4444;--green:#10b981;--amber:#f59e0b;--purple:#7c3aed;--text:#c8d6e5;--muted:#4a6080;--font:'Syne',sans-serif;--mono:'IBM Plex Mono',monospace}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:var(--font);min-height:100vh}
+.layout{display:grid;grid-template-columns:220px 1fr;min-height:100vh}
+.sidebar{background:var(--surface);border-right:1px solid var(--border)}
+.logo{padding:22px 20px;border-bottom:1px solid var(--border);font-size:13px;font-weight:700;color:#fff;letter-spacing:2px}
+nav a{display:flex;align-items:center;gap:10px;padding:11px 20px;color:var(--muted);font-size:13px;text-decoration:none;transition:all .15s;border-left:2px solid transparent}
+nav a:hover{color:var(--text);background:rgba(0,212,255,.04)}
+nav a.active{color:var(--accent);background:rgba(0,212,255,.08);border-left-color:var(--accent)}
+nav a svg{width:15px;height:15px}
+.main{overflow-y:auto}
+.header{background:var(--surface);border-bottom:1px solid var(--border);padding:16px 28px;display:flex;align-items:center;gap:12px}
+.header h1{font-size:17px;font-weight:700;color:#fff;flex:1}
+.btn-back{background:var(--card);border:1px solid var(--border);border-radius:5px;padding:7px 14px;color:var(--muted);font-size:12px;cursor:pointer;text-decoration:none;transition:all .15s}
+.btn-back:hover{color:var(--accent);border-color:var(--accent)}
+.btn-export{padding:7px 16px;border-radius:5px;font-family:var(--mono);font-size:11px;cursor:pointer;transition:all .15s;border:1px solid;text-decoration:none}
+.btn-export.pdf{border-color:var(--red);color:var(--red);background:rgba(239,68,68,.08)}
+.btn-export.pdf:hover{background:rgba(239,68,68,.15)}
+.tab-bar{display:flex;gap:2px;margin-bottom:20px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:4px;width:fit-content}
+.tab{padding:7px 18px;border-radius:5px;font-family:var(--mono);font-size:11px;cursor:pointer;color:var(--muted);transition:all .15s;border:none;background:none;letter-spacing:1px;text-transform:uppercase}
+.tab.active{background:var(--accent);color:#040c1a;font-weight:600}
+.tab:hover:not(.active){color:var(--text);background:rgba(0,212,255,.06)}
+.content{padding:24px 28px}
+.standards-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
+.std-card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:18px;text-align:center;transition:all .2s;cursor:default}
+.std-card:hover{border-color:var(--std-color);transform:translateY(-2px)}
+.std-name{font-size:18px;font-weight:800;margin-bottom:6px;color:var(--std-color)}
+.std-desc{font-size:11px;color:var(--muted);line-height:1.5;margin-bottom:12px}
+.std-status{display:inline-block;padding:3px 10px;border-radius:10px;font-family:var(--mono);font-size:10px;background:rgba(16,185,129,.1);color:var(--green);border:1px solid rgba(16,185,129,.2)}
+.summary-row{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:22px}
+.s-card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px}
+.s-val{font-size:28px;font-weight:700;margin-bottom:4px}
+.s-label{font-family:var(--mono);font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px}
+.findings-card{background:var(--card);border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.fc-header{display:flex;align-items:center;padding:14px 20px;border-bottom:1px solid var(--border);gap:10px}
+.fc-header h3{font-size:14px;font-weight:600;color:#fff;flex:1}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{background:var(--surface);padding:10px 16px;text-align:left;font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;border-bottom:1px solid var(--border)}
+td{padding:10px 16px;border-bottom:1px solid rgba(17,34,64,.6)}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(0,212,255,.02)}
+.status-badge{display:inline-block;padding:2px 8px;border-radius:3px;font-family:var(--mono);font-size:10px}
+.status-non{background:rgba(239,68,68,.1);color:var(--red)}
+.status-comp{background:rgba(16,185,129,.1);color:var(--green)}
+.status-mon{background:rgba(0,212,255,.1);color:var(--accent)}
+.status-rev{background:rgba(245,158,11,.1);color:var(--amber)}
+.std-badge{display:inline-block;padding:2px 8px;border-radius:3px;font-family:var(--mono);font-size:10px}
+.std-gdpr{background:rgba(0,212,255,.1);color:var(--accent)}
+.std-sox{background:rgba(16,185,129,.1);color:var(--green)}
+.std-hipaa{background:rgba(124,58,237,.1);color:#a78bfa}
+.std-pci{background:rgba(245,158,11,.1);color:var(--amber)}
+.empty{padding:40px;text-align:center;color:var(--muted);font-size:13px}
+</style>
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="logo">DAM v3.0</div>
+    <nav>
+      <a href="/dashboard"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Dashboard</a>
+      <a href="/alerts"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>Alerts</a>
+      <a href="/analytics"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Analytics</a>
+      <a href="/compliance" class="active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Compliance</a>
+    </nav>
+  </aside>
+  <div class="main">
+    <div class="header">
+      <h1>Compliance Dashboard</h1>
+      <a class="btn-export pdf" id="pdfLink" href="/api/v2/export/compliance/pdf?type=daily" target="_blank">⬇ Export PDF</a>
+      <a class="btn-back" href="/dashboard">← Dashboard</a>
+    </div>
+    <div class="content">
+      <!-- Standards -->
+      <div class="standards-grid">
+        <div class="std-card" style="--std-color:#00d4ff"><div class="std-name">GDPR</div><div class="std-desc">Personal data access & user consent monitoring</div><div class="std-status">● ACTIVE</div></div>
+        <div class="std-card" style="--std-color:#10b981"><div class="std-name">SOX</div><div class="std-desc">Financial data controls & audit trail compliance</div><div class="std-status">● ACTIVE</div></div>
+        <div class="std-card" style="--std-color:#a78bfa"><div class="std-name">HIPAA</div><div class="std-desc">Protected health information access logging</div><div class="std-status">● ACTIVE</div></div>
+        <div class="std-card" style="--std-color:#f59e0b"><div class="std-name">PCI DSS</div><div class="std-desc">Cardholder data environment monitoring</div><div class="std-status">● ACTIVE</div></div>
+      </div>
+
+      <!-- Period selector -->
+      <div class="tab-bar">
+        <button class="tab active" onclick="loadReport('daily',this)">Daily</button>
+        <button class="tab" onclick="loadReport('weekly',this)">Weekly</button>
+        <button class="tab" onclick="loadReport('monthly',this)">Monthly</button>
+      </div>
+
+      <!-- Stats -->
+      <div class="summary-row">
+        <div class="s-card"><div class="s-val" style="color:var(--accent)" id="rTotal">—</div><div class="s-label">Total Activities</div></div>
+        <div class="s-card"><div class="s-val" style="color:var(--red)"   id="rNonCompliant">—</div><div class="s-label">Non-Compliant</div></div>
+        <div class="s-card"><div class="s-val" style="color:var(--green)" id="rStandards">—</div><div class="s-label">Standards Active</div></div>
+      </div>
+
+      <!-- Findings -->
+      <div class="findings-card">
+        <div class="fc-header">
+          <h3>Compliance Findings</h3>
+          <span id="findingCount" style="font-family:var(--mono);font-size:11px;color:var(--muted)"></span>
+        </div>
+        <table>
+          <thead><tr><th>Standard</th><th>Status</th><th>Issue</th></tr></thead>
+          <tbody id="findingsTbody"><tr><td colspan="3" class="empty">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+async function loadReport(type,btn){
+  // Update active tab
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+
+  // Update PDF export link
+  document.getElementById('pdfLink').href=`/api/v2/export/compliance/pdf?type=${type}`;
+
+  const r=await fetch(`/api/compliance/report?type=${type}`);
+  const d=await r.json();
+  if(!d.success)return;
+  const rep=d.report;
+  const stats=rep.statistics||{};
+
+  document.getElementById('rTotal').textContent=(stats.total_activities||0).toLocaleString();
+  document.getElementById('rNonCompliant').textContent=(stats.non_compliant_count||0).toLocaleString();
+  document.getElementById('rStandards').textContent=(stats.standards_covered||[]).length;
+
+  const findings=rep.findings||[];
+  document.getElementById('findingCount').textContent=`${findings.length} findings`;
+  const tbody=document.getElementById('findingsTbody');
+  if(!findings.length){tbody.innerHTML='<tr><td colspan="3" class="empty">✅ No compliance violations found for this period</td></tr>';return}
+  tbody.innerHTML=findings.slice(0,200).map(f=>{
+    const sc={'Non-compliant':'status-non','Compliant':'status-comp','Monitored':'status-mon','Review needed':'status-rev'}[f.status]||'status-mon';
+    const stdc={'GDPR':'std-gdpr','SOX':'std-sox','HIPAA':'std-hipaa','PCI_DSS':'std-pci'}[f.standard]||'std-gdpr';
+    return `<tr>
+      <td><span class="std-badge ${stdc}">${f.standard||'—'}</span></td>
+      <td><span class="status-badge ${sc}">${f.status||'—'}</span></td>
+      <td style="color:var(--muted);font-size:12px">${f.issue||'—'}</td>
+    </tr>`;
+  }).join('');
+}
+loadReport('daily',null);
+</script>
+</body>
+</html>

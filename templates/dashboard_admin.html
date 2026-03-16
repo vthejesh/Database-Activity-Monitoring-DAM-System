@@ -1,730 +1,521 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Guardium DAM - Security Intelligence</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DAM · Admin Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#040c1a;--surface:#071428;--card:#0a1e38;--border:#112240;
+  --accent:#00d4ff;--accent2:#7c3aed;--red:#ef4444;--green:#10b981;
+  --amber:#f59e0b;--text:#c8d6e5;--muted:#4a6080;
+  --font:'Syne',sans-serif;--mono:'IBM Plex Mono',monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box;scrollbar-width:thin;scrollbar-color:var(--border) transparent}
+body{background:var(--bg);color:var(--text);font-family:var(--font);min-height:100vh;display:flex}
 
-    <!-- Bootstrap -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+/* ── SIDEBAR ──────────────────────────────────────────── */
+.sidebar{
+  width:220px;min-height:100vh;background:var(--surface);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;position:fixed;top:0;left:0;z-index:100;
+}
+.logo{
+  padding:24px 20px;border-bottom:1px solid var(--border);
+  font-size:13px;font-weight:700;color:#fff;letter-spacing:2px;text-transform:uppercase;
+  display:flex;align-items:center;gap:10px;
+}
+.logo-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 10px var(--accent);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
 
-    <style>
-        :root {
-            --guardium-blue: #053549;
-            --guardium-dark-blue: #03222e;
-            --guardium-accent: #007d9c;
-            --guardium-light: #eef4f7;
-            --guardium-gray: #5f6b7a;
-            --guardium-border: #cbd5e1;
-            --guardium-success: #2e7d32;
-            --guardium-warning: #b85c00;
-            --guardium-danger: #b71c1c;
-            --guardium-info: #005c99;
-        }
+nav{flex:1;padding:16px 0}
+.nav-section{font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:3px;padding:16px 20px 6px;text-transform:uppercase}
+.nav-item{
+  display:flex;align-items:center;gap:10px;padding:10px 20px;
+  color:var(--muted);font-size:14px;font-weight:500;cursor:pointer;
+  transition:all .15s;border-left:2px solid transparent;text-decoration:none;
+}
+.nav-item:hover{color:var(--text);background:rgba(0,212,255,.04);border-left-color:var(--border)}
+.nav-item.active{color:var(--accent);background:rgba(0,212,255,.08);border-left-color:var(--accent)}
+.nav-item svg{width:16px;height:16px;flex-shrink:0}
+.nav-badge{
+  margin-left:auto;background:var(--red);color:#fff;
+  border-radius:10px;padding:1px 7px;font-family:var(--mono);font-size:10px;
+}
 
-        body {
-            background: #f0f4f8;
-            color: #1a2b3c;
-            font-family: 'Segoe UI', 'Roboto', system-ui, sans-serif;
-            font-size: 0.9rem;
-        }
+.sidebar-footer{padding:16px 20px;border-top:1px solid var(--border)}
+.user-chip{display:flex;align-items:center;gap:10px}
+.avatar{width:32px;height:32px;border-radius:6px;background:linear-gradient(135deg,var(--accent2),var(--accent));display:grid;place-items:center;font-size:13px;font-weight:700;color:#fff}
+.user-info{flex:1;min-width:0}
+.user-name{font-size:13px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.user-role{font-family:var(--mono);font-size:10px;color:var(--accent)}
+.btn-logout{background:none;border:none;color:var(--muted);cursor:pointer;padding:4px;transition:color .15s}
+.btn-logout:hover{color:var(--red)}
 
-        /* IBM Guardium Style Top Bar */
-        .top-bar {
-            background: linear-gradient(180deg, #053549 0%, #04313f 100%);
-            color: white;
-            padding: 0.5rem 1.5rem;
-            border-bottom: 2px solid #007d9c;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-        }
+/* ── MAIN ─────────────────────────────────────────────── */
+.main{margin-left:220px;flex:1;display:flex;flex-direction:column;min-height:100vh}
 
-        .guardium-logo {
-            font-size: 1.4rem;
-            font-weight: 500;
-            letter-spacing: 0.5px;
-        }
+.topbar{
+  height:56px;background:var(--surface);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;padding:0 28px;gap:16px;position:sticky;top:0;z-index:50;
+}
+.page-title{font-size:16px;font-weight:700;color:#fff;flex:1}
+.topbar-time{font-family:var(--mono);font-size:12px;color:var(--muted)}
+.alert-pill{
+  display:flex;align-items:center;gap:6px;background:rgba(239,68,68,.1);
+  border:1px solid rgba(239,68,68,.3);border-radius:20px;padding:5px 12px;
+  font-family:var(--mono);font-size:11px;color:var(--red);cursor:pointer;transition:all .15s;
+}
+.alert-pill:hover{background:rgba(239,68,68,.2)}
+.alert-dot{width:6px;height:6px;border-radius:50%;background:var(--red);animation:pulse 1.5s infinite}
+.filter-btn{
+  background:var(--card);border:1px solid var(--border);border-radius:6px;
+  padding:7px 14px;color:var(--muted);font-size:13px;cursor:pointer;transition:all .15s;
+  display:flex;align-items:center;gap:6px;
+}
+.filter-btn:hover{border-color:var(--accent);color:var(--accent)}
 
-        .guardium-logo small {
-            font-size: 0.7rem;
-            color: #8bb9c9;
-            font-weight: 300;
-            margin-left: 8px;
-        }
+.content{padding:24px 28px;flex:1}
 
-        .status-badge {
-            background: rgba(255,255,255,0.1);
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 0.8rem;
-            border: 1px solid rgba(255,255,255,0.2);
-        }
+/* ── KPI CARDS ────────────────────────────────────────── */
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
+.kpi{
+  background:var(--card);border:1px solid var(--border);border-radius:8px;
+  padding:20px;position:relative;overflow:hidden;transition:transform .2s,border-color .2s;
+}
+.kpi:hover{transform:translateY(-2px);border-color:var(--accent)}
+.kpi::after{
+  content:'';position:absolute;top:0;right:0;width:60px;height:60px;
+  background:radial-gradient(circle at top right, var(--kpi-color,.1),transparent 70%);
+  opacity:.15;
+}
+.kpi-label{font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-bottom:10px}
+.kpi-val{font-size:36px;font-weight:800;color:#fff;line-height:1;margin-bottom:6px}
+.kpi-sub{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:4px}
+.kpi-icon{position:absolute;top:20px;right:20px;opacity:.2;font-size:28px}
+.kpi.red    {--kpi-color:rgba(239,68,68,.3)} .kpi.red    .kpi-val{color:var(--red)}
+.kpi.green  {--kpi-color:rgba(16,185,129,.3)}.kpi.green  .kpi-val{color:var(--green)}
+.kpi.amber  {--kpi-color:rgba(245,158,11,.3)}.kpi.amber  .kpi-val{color:var(--amber)}
+.kpi.blue   {--kpi-color:rgba(0,212,255,.3)} .kpi.blue   .kpi-val{color:var(--accent)}
 
-        .status-badge i {
-            color: #4ade80;
-        }
+/* ── CHARTS ROW ───────────────────────────────────────── */
+.charts-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:24px}
+.chart-card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:20px}
+.chart-card.wide{grid-column:span 2}
+.chart-title{font-size:13px;font-weight:600;color:#fff;margin-bottom:4px}
+.chart-sub{font-family:var(--mono);font-size:10px;color:var(--muted);margin-bottom:16px}
+.chart-wrap{position:relative;height:180px}
 
-        /* Guardium Style Cards */
-        .guardium-card {
-            background: white;
-            border: 1px solid #d9e2e9;
-            border-radius: 4px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-            margin-bottom: 20px;
-        }
+/* ── BOTTOM GRID ──────────────────────────────────────── */
+.bottom-grid{display:grid;grid-template-columns:1fr 360px;gap:16px}
 
-        .guardium-card-header {
-            background: #f5f9fc;
-            padding: 12px 16px;
-            border-bottom: 1px solid #d9e2e9;
-            font-weight: 600;
-            color: #053549;
-            text-transform: uppercase;
-            font-size: 0.8rem;
-            letter-spacing: 0.5px;
-        }
+/* ── ACTIVITY TABLE ───────────────────────────────────── */
+.table-card{background:var(--card);border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.table-header{
+  display:flex;align-items:center;padding:16px 20px;
+  border-bottom:1px solid var(--border);gap:12px;
+}
+.table-header h3{font-size:14px;font-weight:600;color:#fff;flex:1}
+.search-input{
+  background:rgba(0,0,0,.3);border:1px solid var(--border);border-radius:4px;
+  padding:7px 12px;color:var(--text);font-family:var(--mono);font-size:12px;
+  outline:none;width:180px;transition:border-color .15s;
+}
+.search-input:focus{border-color:var(--accent)}
+.select-filter{
+  background:rgba(0,0,0,.3);border:1px solid var(--border);border-radius:4px;
+  padding:7px 10px;color:var(--muted);font-size:12px;outline:none;cursor:pointer;
+}
+.table-wrap{overflow-x:auto;max-height:340px;overflow-y:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{
+  position:sticky;top:0;background:var(--surface);padding:10px 16px;
+  text-align:left;font-family:var(--mono);font-size:10px;color:var(--muted);
+  letter-spacing:2px;text-transform:uppercase;white-space:nowrap;border-bottom:1px solid var(--border);
+}
+td{padding:10px 16px;border-bottom:1px solid rgba(17,34,64,.6);white-space:nowrap}
+tr:hover td{background:rgba(0,212,255,.03)}
+tr:last-child td{border-bottom:none}
+.badge-op{
+  display:inline-block;padding:2px 8px;border-radius:3px;
+  font-family:var(--mono);font-size:10px;font-weight:500;
+}
+.op-select {background:rgba(0,212,255,.1);color:var(--accent)}
+.op-insert {background:rgba(16,185,129,.1);color:var(--green)}
+.op-update {background:rgba(245,158,11,.1);color:var(--amber)}
+.op-delete {background:rgba(239,68,68,.1);color:var(--red)}
+.op-login  {background:rgba(124,58,237,.1);color:#a78bfa}
+.op-logout {background:rgba(75,85,99,.1);color:#9ca3af}
+.badge-sev{
+  display:inline-block;padding:2px 8px;border-radius:3px;
+  font-family:var(--mono);font-size:10px;
+}
+.sev-low     {background:rgba(16,185,129,.1);color:var(--green)}
+.sev-medium  {background:rgba(245,158,11,.1);color:var(--amber)}
+.sev-high    {background:rgba(239,68,68,.1);color:var(--red)}
+.sev-critical{background:rgba(239,68,68,.2);color:#ff6b6b;border:1px solid rgba(239,68,68,.3)}
+.susp-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--red);box-shadow:0 0 6px var(--red)}
 
-        .guardium-card-header i {
-            color: #007d9c;
-            margin-right: 8px;
-        }
+/* ── ALERTS PANEL ─────────────────────────────────────── */
+.alerts-card{background:var(--card);border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.alerts-header{display:flex;align-items:center;padding:16px 20px;border-bottom:1px solid var(--border);gap:8px}
+.alerts-header h3{font-size:14px;font-weight:600;color:#fff;flex:1}
+.alerts-list{max-height:380px;overflow-y:auto}
+.alert-item{
+  padding:14px 20px;border-bottom:1px solid rgba(17,34,64,.6);cursor:pointer;
+  transition:background .15s;border-left:3px solid transparent;
+}
+.alert-item:hover{background:rgba(0,212,255,.03)}
+.alert-item:last-child{border-bottom:none}
+.alert-item.critical{border-left-color:var(--red)}
+.alert-item.high{border-left-color:var(--amber)}
+.alert-top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:4px}
+.alert-type{font-size:12px;font-weight:600;color:#fff}
+.alert-sev{font-family:var(--mono);font-size:10px;padding:1px 6px;border-radius:3px}
+.alert-desc{font-size:11px;color:var(--muted);margin-bottom:6px;line-height:1.4;white-space:normal}
+.alert-meta{display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--muted)}
+.btn-resolve{
+  background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.2);
+  border-radius:3px;padding:2px 8px;color:var(--green);font-family:var(--mono);
+  font-size:10px;cursor:pointer;transition:all .15s;
+}
+.btn-resolve:hover{background:rgba(16,185,129,.2)}
+.empty-state{padding:32px;text-align:center;color:var(--muted);font-size:13px}
 
-        .guardium-card-body {
-            padding: 16px;
-        }
+/* ── EXPORT BAR ───────────────────────────────────────── */
+.export-bar{
+  display:flex;align-items:center;gap:8px;margin-top:16px;
+  padding:12px 16px;background:var(--card);border:1px solid var(--border);border-radius:8px;
+}
+.export-bar span{font-size:13px;color:var(--muted);flex:1}
+.btn-export{
+  padding:7px 14px;border-radius:4px;font-family:var(--mono);font-size:11px;
+  cursor:pointer;transition:all .15s;border:1px solid;text-decoration:none;display:inline-block;
+}
+.btn-export.csv{border-color:var(--green);color:var(--green);background:rgba(16,185,129,.08)}
+.btn-export.csv:hover{background:rgba(16,185,129,.15)}
+.btn-export.pdf{border-color:var(--red);color:var(--red);background:rgba(239,68,68,.08)}
+.btn-export.pdf:hover{background:rgba(239,68,68,.15)}
 
-        /* Stats Tiles - Guardium Style */
-        .stat-tile {
-            background: white;
-            border: 1px solid #d9e2e9;
-            border-radius: 4px;
-            padding: 20px;
-            position: relative;
-            overflow: hidden;
-        }
+/* Loading skeleton */
+.skeleton{background:linear-gradient(90deg,var(--border) 25%,rgba(17,34,64,.4) 50%,var(--border) 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:4px}
+@keyframes shimmer{0%{background-position:200%}100%{background-position:-200%}}
 
-        .stat-tile::before {
-            content: '';
-            position: absolute;
-            left: 0;
-            top: 0;
-            height: 100%;
-            width: 4px;
-            background: #007d9c;
-        }
-
-        .stat-tile.alert-tile::before {
-            background: #b85c00;
-        }
-
-        .stat-tile.critical-tile::before {
-            background: #b71c1c;
-        }
-
-        .stat-label {
-            color: #5f6b7a;
-            text-transform: uppercase;
-            font-size: 0.7rem;
-            font-weight: 600;
-            letter-spacing: 0.5px;
-            margin-bottom: 8px;
-        }
-
-        .stat-value {
-            font-size: 2.2rem;
-            font-weight: 600;
-            color: #053549;
-            line-height: 1;
-        }
-
-        .stat-unit {
-            font-size: 0.8rem;
-            color: #5f6b7a;
-            margin-left: 4px;
-        }
-
-        /* Activity Feed - Guardium Style */
-        .activity-feed {
-            background: white;
-            border: 1px solid #d9e2e9;
-            border-radius: 4px;
-            height: 500px;
-            overflow-y: auto;
-        }
-
-        .feed-header {
-            background: #f5f9fc;
-            padding: 12px 16px;
-            border-bottom: 1px solid #d9e2e9;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .feed-title {
-            font-weight: 600;
-            color: #053549;
-            font-size: 0.9rem;
-            text-transform: uppercase;
-        }
-
-        .live-indicator {
-            background: #f0f4f8;
-            color: #2e7d32;
-            padding: 4px 10px;
-            border-radius: 20px;
-            font-size: 0.7rem;
-            font-weight: 600;
-            border: 1px solid #cbd5e1;
-        }
-
-        .live-indicator i {
-            color: #2e7d32;
-            animation: pulse 1.5s infinite;
-        }
-
-        @keyframes pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.5; }
-            100% { opacity: 1; }
-        }
-
-        /* Log Entries - Guardium Grid Style */
-        .log-entry-guardium {
-            padding: 12px 16px;
-            border-bottom: 1px solid #e5edf2;
-            font-size: 0.85rem;
-            transition: background-color 0.1s ease;
-        }
-
-        .log-entry-guardium:hover {
-            background-color: #f0f9ff;
-        }
-
-        .log-entry-guardium.normal {
-            border-left: 3px solid #2e7d32;
-        }
-
-        .log-entry-guardium.suspicious {
-            border-left: 3px solid #b85c00;
-            background-color: #fff8f0;
-        }
-
-        .log-entry-guardium.failed {
-            border-left: 3px solid #b71c1c;
-            background-color: #fff5f5;
-        }
-
-        .log-timestamp {
-            color: #5f6b7a;
-            font-size: 0.7rem;
-            font-family: 'Consolas', monospace;
-        }
-
-        .log-user {
-            font-weight: 600;
-            color: #053549;
-        }
-
-        .log-operation {
-            background: #f0f4f8;
-            padding: 2px 8px;
-            border-radius: 3px;
-            font-size: 0.75rem;
-            font-weight: 600;
-            color: #053549;
-        }
-
-        .log-table {
-            color: #007d9c;
-            font-family: 'Consolas', monospace;
-            font-size: 0.8rem;
-        }
-
-        .log-details {
-            color: #5f6b7a;
-            font-size: 0.8rem;
-            margin-top: 6px;
-            padding-top: 6px;
-            border-top: 1px dashed #d9e2e9;
-        }
-
-        .suspicious-badge {
-            background: #b85c00;
-            color: white;
-            font-size: 0.65rem;
-            padding: 2px 8px;
-            border-radius: 12px;
-            font-weight: 600;
-            text-transform: uppercase;
-        }
-
-        .failed-badge {
-            background: #b71c1c;
-            color: white;
-            font-size: 0.65rem;
-            padding: 2px 8px;
-            border-radius: 12px;
-            font-weight: 600;
-            text-transform: uppercase;
-        }
-
-        /* Filter Bar */
-        .filter-bar {
-            background: white;
-            border: 1px solid #d9e2e9;
-            border-radius: 4px;
-            padding: 12px 16px;
-            margin-bottom: 16px;
-            display: flex;
-            gap: 16px;
-            flex-wrap: wrap;
-        }
-
-        .filter-item {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .filter-label {
-            color: #5f6b7a;
-            font-size: 0.75rem;
-            font-weight: 600;
-            text-transform: uppercase;
-        }
-
-        .filter-select {
-            border: 1px solid #d9e2e9;
-            border-radius: 3px;
-            padding: 4px 8px;
-            font-size: 0.8rem;
-            color: #053549;
-        }
-
-        /* Navigation Tabs - Guardium Style */
-        .nav-tabs-guardium {
-            border-bottom: 1px solid #d9e2e9;
-            margin-bottom: 20px;
-        }
-
-        .nav-tabs-guardium .nav-link {
-            color: #5f6b7a;
-            border: none;
-            padding: 10px 20px;
-            font-weight: 500;
-            font-size: 0.85rem;
-        }
-
-        .nav-tabs-guardium .nav-link:hover {
-            color: #007d9c;
-            border: none;
-            background: transparent;
-        }
-
-        .nav-tabs-guardium .nav-link.active {
-            color: #053549;
-            border: none;
-            border-bottom: 3px solid #007d9c;
-            background: transparent;
-            font-weight: 600;
-        }
-
-        /* Buttons */
-        .btn-guardium {
-            background: #f0f4f8;
-            border: 1px solid #cbd5e1;
-            color: #053549;
-            font-size: 0.8rem;
-            padding: 6px 12px;
-            border-radius: 3px;
-        }
-
-        .btn-guardium:hover {
-            background: #e5edf2;
-            border-color: #94a3b8;
-        }
-
-        .btn-guardium-primary {
-            background: #007d9c;
-            border: 1px solid #006d8a;
-            color: white;
-        }
-
-        .btn-guardium-primary:hover {
-            background: #006d8a;
-            color: white;
-        }
-
-        /* Scrollbar */
-        .activity-feed::-webkit-scrollbar {
-            width: 8px;
-        }
-
-        .activity-feed::-webkit-scrollbar-track {
-            background: #f0f4f8;
-        }
-
-        .activity-feed::-webkit-scrollbar-thumb {
-            background: #94a3b8;
-            border-radius: 4px;
-        }
-    </style>
+@media(max-width:1200px){
+  .charts-row{grid-template-columns:1fr 1fr}.chart-card.wide{grid-column:span 2}
+  .bottom-grid{grid-template-columns:1fr}
+}
+@media(max-width:900px){
+  .sidebar{width:60px}.logo span,.nav-item span,.user-info,.nav-section{display:none}
+  .main{margin-left:60px}.kpi-grid{grid-template-columns:1fr 1fr}
+}
+</style>
 </head>
 <body>
-
-<!-- IBM Guardium Style Top Bar -->
-<div class="top-bar d-flex justify-content-between align-items-center">
-    <div class="d-flex align-items-center gap-4">
-        <div class="guardium-logo">
-            <i class="bi bi-shield-shaded me-2"></i>IBM Guardium<span style="color: #8bb9c9;"> | DAM</span>
-            <small>v11.5</small>
-        </div>
-        <div class="status-badge">
-            <i class="bi bi-circle-fill me-2"></i> Collector Active · 3 Agents Online
-        </div>
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="logo"><div class="logo-dot"></div><span>DAM v3.0</span></div>
+  <nav>
+    <div class="nav-section">Monitor</div>
+    <a class="nav-item active" href="/dashboard">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      <span>Dashboard</span>
+    </a>
+    <a class="nav-item" href="/alerts">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+      <span>Alerts</span>
+      <span class="nav-badge" id="alertBadge">0</span>
+    </a>
+    <div class="nav-section">Analytics</div>
+    <a class="nav-item" href="/analytics">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      <span>Analytics</span>
+    </a>
+    <a class="nav-item" href="/compliance">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      <span>Compliance</span>
+    </a>
+    <div class="nav-section">Admin</div>
+    <a class="nav-item" id="usersLink" href="#" onclick="showUsers()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+      <span>Users</span>
+    </a>
+    <a class="nav-item" href="#" onclick="showFirewall()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+      <span>Firewall</span>
+    </a>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="user-chip">
+      <div class="avatar" id="avatarLetter">A</div>
+      <div class="user-info">
+        <div class="user-name" id="sidebarUser">Admin</div>
+        <div class="user-role">ADMINISTRATOR</div>
+      </div>
+      <button class="btn-logout" onclick="logout()" title="Logout">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      </button>
     </div>
-    <div class="d-flex align-items-center gap-3">
-        <span id="userInfo" class="d-flex align-items-center gap-2">
-            <i class="bi bi-person-circle"></i>
-            <span class="status-badge">Loading...</span>
-        </span>
-        <button class="btn btn-guardium-primary btn-sm" onclick="logout()">
-            <i class="bi bi-box-arrow-right me-2"></i>Disconnect
-        </button>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<main class="main">
+  <div class="topbar">
+    <div class="page-title">Security Overview</div>
+    <div class="topbar-time" id="clock"></div>
+    <div class="alert-pill" id="alertPill" onclick="location.href='/alerts'" style="display:none">
+      <div class="alert-dot"></div><span id="alertPillText">0 Active Alerts</span>
     </div>
-</div>
+    <button class="filter-btn" onclick="loadData()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>Refresh
+    </button>
+  </div>
 
-<div class="container-fluid mt-4">
-
-    <!-- Navigation Tabs -->
-    <div class="nav-tabs-guardium">
-        <ul class="nav">
-            <li class="nav-item">
-                <a class="nav-link active" href="#">
-                    <i class="bi bi-speedometer2 me-2"></i>Dashboard
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" href="#">
-                    <i class="bi bi-list-task me-2"></i>Activity Monitoring
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" href="#">
-                    <i class="bi bi-shield-exclamation me-2"></i>Security Intelligence
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" href="#">
-                    <i class="bi bi-graph-up me-2"></i>Reports
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" href="#">
-                    <i class="bi bi-gear me-2"></i>Configuration
-                </a>
-            </li>
-        </ul>
-    </div>
-
-    <!-- Quick Stats Row -->
-    <div class="row mb-4 g-3">
-        <div class="col-md-3">
-            <div class="stat-tile">
-                <div class="stat-label">Total Events (24h)</div>
-                <div class="stat-value" id="totalActivities">0</div>
-                <div class="mt-2 text-success small">
-                    <i class="bi bi-arrow-up"></i> +12.5% from yesterday
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="stat-tile alert-tile">
-                <div class="stat-label">Suspicious Events</div>
-                <div class="stat-value" id="totalSuspicious">0</div>
-                <div class="mt-2 text-warning small">
-                    <i class="bi bi-exclamation-triangle"></i> 3 high severity
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="stat-tile critical-tile">
-                <div class="stat-label">Failed Operations</div>
-                <div class="stat-value" id="totalFailed">0</div>
-                <div class="mt-2 text-danger small">
-                    <i class="bi bi-x-circle"></i> 8 unique sources
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="stat-tile">
-                <div class="stat-label">Databases Monitored</div>
-                <div class="stat-value">3</div>
-                <div class="mt-2 text-info small">
-                    <i class="bi bi-database"></i> Oracle · MySQL · PostgreSQL
-                </div>
-            </div>
-        </div>
+  <div class="content">
+    <!-- KPI GRID -->
+    <div class="kpi-grid">
+      <div class="kpi blue">
+        <div class="kpi-label">Total Events</div>
+        <div class="kpi-val" id="kTotal">—</div>
+        <div class="kpi-sub">All time logged activity</div>
+        <div class="kpi-icon">📊</div>
+      </div>
+      <div class="kpi green">
+        <div class="kpi-label">Today's Events</div>
+        <div class="kpi-val" id="kToday">—</div>
+        <div class="kpi-sub">Last 24 hours</div>
+        <div class="kpi-icon">📅</div>
+      </div>
+      <div class="kpi red">
+        <div class="kpi-label">Suspicious</div>
+        <div class="kpi-val" id="kSusp">—</div>
+        <div class="kpi-sub">Flagged activities</div>
+        <div class="kpi-icon">🚨</div>
+      </div>
+      <div class="kpi amber">
+        <div class="kpi-label">Failed Ops</div>
+        <div class="kpi-val" id="kFailed">—</div>
+        <div class="kpi-sub">Denied / errored</div>
+        <div class="kpi-icon">⚠️</div>
+      </div>
     </div>
 
-    <!-- Filter Bar -->
-    <div class="filter-bar">
-        <div class="filter-item">
-            <span class="filter-label">Time Range:</span>
-            <select class="filter-select">
-                <option>Last 15 minutes</option>
-                <option>Last 1 hour</option>
-                <option>Last 24 hours</option>
-                <option selected>Last 7 days</option>
+    <!-- CHARTS -->
+    <div class="charts-row">
+      <div class="chart-card wide">
+        <div class="chart-title">Activity Timeline</div>
+        <div class="chart-sub">Queries · Suspicious · Failed — last 24h</div>
+        <div class="chart-wrap"><canvas id="timelineChart"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Operation Types</div>
+        <div class="chart-sub">Distribution breakdown</div>
+        <div class="chart-wrap"><canvas id="opChart"></canvas></div>
+      </div>
+    </div>
+
+    <!-- ACTIVITY TABLE + ALERTS -->
+    <div class="bottom-grid">
+      <div>
+        <div class="table-card">
+          <div class="table-header">
+            <h3>Live Activity Log</h3>
+            <input class="search-input" id="searchBox" placeholder="Search user / table…" oninput="filterTable()">
+            <select class="select-filter" id="opFilter" onchange="filterTable()">
+              <option value="">All Operations</option>
+              <option>SELECT</option><option>INSERT</option><option>UPDATE</option>
+              <option>DELETE</option><option>LOGIN</option><option>LOGOUT</option>
             </select>
+          </div>
+          <div class="table-wrap">
+            <table id="actTable">
+              <thead><tr>
+                <th>ID</th><th>User</th><th>Operation</th><th>Table</th>
+                <th>Status</th><th>IP</th><th>Severity</th><th>Time</th>
+              </tr></thead>
+              <tbody id="actTbody"><tr><td colspan="8" style="text-align:center;padding:32px;color:var(--muted)">Loading…</td></tr></tbody>
+            </table>
+          </div>
         </div>
-        <div class="filter-item">
-            <span class="filter-label">Severity:</span>
-            <select class="filter-select">
-                <option>All</option>
-                <option>Critical</option>
-                <option>High</option>
-                <option>Medium</option>
-                <option>Low</option>
-            </select>
+        <div class="export-bar">
+          <span>Export current view</span>
+          <a class="btn-export csv" href="/api/v2/export/activities/csv" target="_blank">⬇ CSV</a>
+          <a class="btn-export pdf" href="/api/v2/export/activities/pdf" target="_blank">⬇ PDF</a>
+          <a class="btn-export pdf" href="/api/v2/export/compliance/pdf?type=daily" target="_blank">⬇ Compliance PDF</a>
         </div>
-        <div class="filter-item">
-            <span class="filter-label">Database:</span>
-            <select class="filter-select">
-                <option>All Databases</option>
-                <option>Oracle PROD</option>
-                <option>MySQL DEV</option>
-                <option>PostgreSQL</option>
-            </select>
+      </div>
+
+      <div class="alerts-card">
+        <div class="alerts-header">
+          <h3>Active Alerts</h3>
+          <span id="alertCount" style="font-family:var(--mono);font-size:11px;color:var(--muted)">0 new</span>
         </div>
-        <div class="filter-item ms-auto">
-            <button class="btn-guardium">
-                <i class="bi bi-funnel"></i> Apply Filters
-            </button>
-            <button class="btn-guardium">
-                <i class="bi bi-arrow-counterclockwise"></i> Reset
-            </button>
+        <div class="alerts-list" id="alertsList">
+          <div class="empty-state">No active alerts</div>
         </div>
+      </div>
     </div>
-
-    <!-- Main Activity Feed -->
-    <div class="row">
-        <div class="col-lg-8">
-            <div class="guardium-card">
-                <div class="guardium-card-header">
-                    <i class="bi bi-shield-check"></i>
-                    Real-Time Database Activity Monitoring
-                    <span class="float-end">
-                        <i class="bi bi-download me-2"></i>
-                        <i class="bi bi-printer me-2"></i>
-                    </span>
-                </div>
-                <div class="guardium-card-body p-0">
-                    <div class="feed-header">
-                        <span class="feed-title">
-                            <i class="bi bi-broadcast me-2"></i>Live Session Tracker
-                        </span>
-                        <span class="live-indicator">
-                            <i class="bi bi-circle-fill me-1"></i> LIVE · 3 Second Refresh
-                        </span>
-                    </div>
-                    <div id="activityFeed" class="activity-feed">
-                        Loading activity feed...
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-lg-4">
-            <!-- Security Summary Card -->
-            <div class="guardium-card">
-                <div class="guardium-card-header">
-                    <i class="bi bi-shield-exclamation"></i>
-                    Security Summary
-                </div>
-                <div class="guardium-card-body">
-                    <div class="mb-3">
-                        <div class="d-flex justify-content-between mb-2">
-                            <span>Risk Level</span>
-                            <span class="badge bg-warning">MEDIUM</span>
-                        </div>
-                        <div class="progress" style="height: 8px;">
-                            <div class="progress-bar bg-warning" style="width: 45%"></div>
-                        </div>
-                    </div>
-                    
-                    <div class="list-group list-group-flush">
-                        <div class="list-group-item d-flex justify-content-between align-items-center px-0">
-                            <span><i class="bi bi-exclamation-triangle text-warning me-2"></i>SQL Injection Attempts</span>
-                            <span class="badge bg-danger">4</span>
-                        </div>
-                        <div class="list-group-item d-flex justify-content-between align-items-center px-0">
-                            <span><i class="bi bi-key text-info me-2"></i>Privilege Escalation</span>
-                            <span class="badge bg-warning">2</span>
-                        </div>
-                        <div class="list-group-item d-flex justify-content-between align-items-center px-0">
-                            <span><i class="bi bi-people text-secondary me-2"></i>Unauthorized Access</span>
-                            <span class="badge bg-info">7</span>
-                        </div>
-                        <div class="list-group-item d-flex justify-content-between align-items-center px-0">
-                            <span><i class="bi bi-database-down text-danger me-2"></i>Data Exfiltration Risk</span>
-                            <span class="badge bg-secondary">1</span>
-                        </div>
-                    </div>
-
-                    <hr>
-
-                    <div class="small">
-                        <div class="d-flex justify-content-between mb-2">
-                            <span class="text-secondary">Top User:</span>
-                            <span class="fw-semibold">APP_USER (142 ops)</span>
-                        </div>
-                        <div class="d-flex justify-content-between mb-2">
-                            <span class="text-secondary">Sensitive Tables Accessed:</span>
-                            <span class="fw-semibold">12</span>
-                        </div>
-                        <div class="d-flex justify-content-between">
-                            <span class="text-secondary">Compliance Status:</span>
-                            <span class="text-success fw-semibold">SOX, GDPR</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Quick Actions -->
-            <div class="guardium-card">
-                <div class="guardium-card-header">
-                    <i class="bi bi-lightning-charge"></i>
-                    Quick Actions
-                </div>
-                <div class="guardium-card-body">
-                    <div class="d-grid gap-2">
-                        <button class="btn-guardium btn-guardium-primary">
-                            <i class="bi bi-file-pdf me-2"></i>Generate Compliance Report
-                        </button>
-                        <button class="btn-guardium">
-                            <i class="bi bi-bell me-2"></i>Configure Alerts
-                        </button>
-                        <button class="btn-guardium">
-                            <i class="bi bi-archive me-2"></i>Archive Logs
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
+  </div>
+</main>
 
 <script>
-let currentUser = null;
+let allActivities=[], timelineChart=null, opChart=null;
 
-document.addEventListener("DOMContentLoaded", () => {
-    loadDashboard();
-    setInterval(loadDashboard, 3000);
-});
+// Clock
+setInterval(()=>{
+  document.getElementById('clock').textContent=new Date().toLocaleTimeString('en-IN',{hour12:false});
+},1000);
 
-async function loadDashboard() {
-    try {
-        const res = await fetch("/api/dashboard-data");
-        if (res.status === 401) {
-            window.location.href = "/";
-            return;
-        }
+async function loadData(){
+  try{
+    const r=await fetch('/api/dashboard-data');
+    const d=await r.json();
+    if(!d.success)return;
 
-        const data = await res.json();
-        if (!data.success) return;
-
-        renderUser(data.user);
-        renderActivities(data.activities || []);
-        updateStats(data.activities || []);
-    } catch (e) {
-        console.error("Dashboard error", e);
-    }
-}
-
-function renderUser(user) {
-    currentUser = user;
-    document.getElementById("userInfo").innerHTML = `
-        <span class="status-badge">
-            <i class="bi bi-person-badge me-1"></i>
-            ${user.username} | ${user.role}
-        </span>
-    `;
-}
-
-function updateStats(activities) {
-    document.getElementById("totalActivities").innerText = activities.length;
-    document.getElementById("totalSuspicious").innerText =
-        activities.filter(a => a.is_suspicious).length;
-    document.getElementById("totalFailed").innerText =
-        activities.filter(a => a.operation_status === "Failed").length;
-}
-
-function renderActivities(activities) {
-    const feed = document.getElementById("activityFeed");
-
-    if (activities.length === 0) {
-        feed.innerHTML = '<div class="text-center text-secondary p-4">No activity recorded in this time period.</div>';
-        return;
+    // User info
+    if(d.user){
+      document.getElementById('sidebarUser').textContent=d.user.username||'Admin';
+      document.getElementById('avatarLetter').textContent=(d.user.username||'A')[0].toUpperCase();
     }
 
-    feed.innerHTML = activities.slice(0, 50).map(a => {
-        let entryClass = "log-entry-guardium normal";
-        let severityBadge = "";
-        
-        if (a.is_suspicious) {
-            entryClass = "log-entry-guardium suspicious";
-            severityBadge = '<span class="suspicious-badge ms-2"><i class="bi bi-exclamation-triangle me-1"></i>SUSPICIOUS</span>';
-        } else if (a.operation_status === "Failed") {
-            entryClass = "log-entry-guardium failed";
-            severityBadge = '<span class="failed-badge ms-2"><i class="bi bi-x-circle me-1"></i>FAILED</span>';
-        }
+    // KPIs
+    const s=d.stats||{};
+    document.getElementById('kTotal').textContent=(s.total||0).toLocaleString();
+    document.getElementById('kToday').textContent=(s.today||0).toLocaleString();
+    document.getElementById('kSusp').textContent=(s.suspicious||0).toLocaleString();
+    document.getElementById('kFailed').textContent=(s.failed||0).toLocaleString();
 
-        return `
-            <div class="${entryClass}">
-                <div class="d-flex justify-content-between align-items-start">
-                    <div>
-                        <span class="log-timestamp">${new Date(a.access_timestamp).toLocaleString()}</span>
-                        ${severityBadge}
-                    </div>
-                    <span class="log-operation">${a.operation_type || 'QUERY'}</span>
-                </div>
-                <div class="mt-2">
-                    <span class="log-user"><i class="bi bi-person me-1"></i>${a.username || 'SYSTEM'}</span>
-                    <span class="mx-2 text-secondary">→</span>
-                    <span class="log-table">${a.table_name || 'unknown'}</span>
-                </div>
-                ${a.operation_details ? `
-                    <div class="log-details">
-                        <i class="bi bi-info-circle me-1"></i>
-                        ${a.operation_details}
-                    </div>` : ''}
-                ${a.suspicious_reasons ? `
-                    <div class="log-details text-warning">
-                        <i class="bi bi-shield-exclamation me-1"></i>
-                        <strong>Alert:</strong> ${a.suspicious_reasons}
-                    </div>` : ''}
-            </div>
-        `;
-    }).join("");
+    // Activities table
+    allActivities=d.activities||[];
+    renderTable(allActivities);
+
+    // Alerts
+    renderAlerts(d.alerts||[]);
+
+    // Charts
+    buildCharts(s,d);
+  }catch(e){console.error(e)}
 }
 
-async function logout() {
-    await fetch("/api/logout", { method: "POST" });
-    window.location.href = "/";
+async function buildCharts(stats,d){
+  try{
+    const r=await fetch('/api/v2/charts/all');
+    const cd=await r.json();
+    if(!cd.success)return;
+    const charts=cd.charts;
+
+    // Timeline
+    const tl=charts.timeline_chart;
+    if(timelineChart)timelineChart.destroy();
+    timelineChart=new Chart(document.getElementById('timelineChart'),{
+      type:'line',
+      data:{
+        labels:tl.labels,
+        datasets:[
+          {label:'Total',data:tl.total,borderColor:'#00d4ff',backgroundColor:'rgba(0,212,255,.08)',tension:.4,pointRadius:2,fill:true},
+          {label:'Suspicious',data:tl.suspicious,borderColor:'#ef4444',backgroundColor:'rgba(239,68,68,.06)',tension:.4,pointRadius:2,fill:true},
+          {label:'Failed',data:tl.failed,borderColor:'#f59e0b',backgroundColor:'rgba(245,158,11,.06)',tension:.4,pointRadius:2,fill:true},
+        ]
+      },
+      options:{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{labels:{color:'#4a6080',font:{size:11}}}},
+        scales:{x:{ticks:{color:'#4a6080',font:{size:9},maxRotation:0,maxTicksLimit:8},grid:{color:'rgba(17,34,64,.8)'}},
+                y:{ticks:{color:'#4a6080',font:{size:9}},grid:{color:'rgba(17,34,64,.8)'}}}}
+    });
+
+    // Op types doughnut
+    const op=charts.operation_type_chart;
+    if(opChart)opChart.destroy();
+    opChart=new Chart(document.getElementById('opChart'),{
+      type:'doughnut',
+      data:{labels:op.labels,datasets:[{data:op.data,backgroundColor:op.colors,borderWidth:0,hoverOffset:6}]},
+      options:{responsive:true,maintainAspectRatio:false,cutout:'65%',
+        plugins:{legend:{position:'bottom',labels:{color:'#4a6080',font:{size:11},padding:12,boxWidth:10}}}}
+    });
+  }catch(e){console.error(e)}
 }
+
+function renderTable(rows){
+  const tbody=document.getElementById('actTbody');
+  if(!rows.length){tbody.innerHTML='<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--muted)">No activity found</td></tr>';return}
+  tbody.innerHTML=rows.map(r=>{
+    const opClass='op-'+(r.operation_type||'').toLowerCase();
+    const sevClass='sev-'+(r.severity_level||'low').toLowerCase();
+    const suspicious=r.is_suspicious?'<span class="susp-dot" title="Suspicious"></span> ':'';
+    const ts=r.access_timestamp?new Date(r.access_timestamp).toLocaleTimeString('en-IN',{hour12:false}):'—';
+    return `<tr>
+      <td style="color:var(--muted);font-family:var(--mono);font-size:11px">#${r.activity_id}</td>
+      <td style="font-weight:500">${r.username||'—'}</td>
+      <td><span class="badge-op ${opClass}">${r.operation_type||'—'}</span></td>
+      <td style="font-family:var(--mono);font-size:12px">${r.table_name||'—'}</td>
+      <td>${suspicious}<span style="font-size:12px;color:${r.operation_status==='Success'?'var(--green)':'var(--red)'}">${r.operation_status||'—'}</span></td>
+      <td style="font-family:var(--mono);font-size:11px;color:var(--muted)">${r.ip_address||'—'}</td>
+      <td><span class="badge-sev ${sevClass}">${r.severity_level||'Low'}</span></td>
+      <td style="font-family:var(--mono);font-size:11px;color:var(--muted)">${ts}</td>
+    </tr>`;
+  }).join('');
+}
+
+function filterTable(){
+  const q=document.getElementById('searchBox').value.toLowerCase();
+  const op=document.getElementById('opFilter').value;
+  const filtered=allActivities.filter(r=>{
+    const matchQ=!q||((r.username||'').toLowerCase().includes(q)||(r.table_name||'').toLowerCase().includes(q)||(r.ip_address||'').toLowerCase().includes(q));
+    const matchOp=!op||r.operation_type===op;
+    return matchQ&&matchOp;
+  });
+  renderTable(filtered);
+}
+
+function renderAlerts(alerts){
+  const el=document.getElementById('alertsList');
+  const badge=document.getElementById('alertBadge');
+  const pill=document.getElementById('alertPill');
+  const pillText=document.getElementById('alertPillText');
+  const count=document.getElementById('alertCount');
+
+  badge.textContent=alerts.length||0;
+  count.textContent=`${alerts.length} new`;
+  if(alerts.length>0){pill.style.display='flex';pillText.textContent=`${alerts.length} Active Alerts`;}
+  else{pill.style.display='none'}
+
+  if(!alerts.length){el.innerHTML='<div class="empty-state">✅ No active alerts</div>';return}
+  el.innerHTML=alerts.map(a=>{
+    const cls=a.severity?.toLowerCase()==='critical'?'critical':a.severity?.toLowerCase()==='high'?'high':'';
+    const sevColors={'Critical':'var(--red)','High':'var(--amber)','Medium':''};
+    const t=a.created_at?new Date(a.created_at).toLocaleTimeString('en-IN',{hour12:false}):'—';
+    return `<div class="alert-item ${cls}">
+      <div class="alert-top">
+        <span class="alert-type">${a.alert_type||'Alert'}</span>
+        <span class="alert-sev" style="color:${sevColors[a.severity]||'var(--muted)'};">${a.severity||'—'}</span>
+      </div>
+      <div class="alert-desc">${(a.description||'').substring(0,100)}…</div>
+      <div class="alert-meta">
+        <span>${a.username||'unknown'} · ${t}</span>
+        <button class="btn-resolve" onclick="resolveAlert(${a.alert_id},this)">Resolve</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function resolveAlert(id,btn){
+  btn.textContent='…';
+  await fetch(`/api/alerts/${id}/resolve`,{method:'POST'});
+  btn.closest('.alert-item').remove();
+}
+
+function showUsers(){alert('Manage users via the Users API.\n\nGET /api/users\nPOST /api/users/{id}/status\n\nFull UI coming in next update.')}
+function showFirewall(){alert('Firewall rules management:\n\nGET /api/v2/firewall/rules\nPOST /api/v2/firewall/rules\nDELETE /api/v2/firewall/rules/{id}')}
+
+async function logout(){
+  await fetch('/api/logout',{method:'POST'});
+  window.location.href='/';
+}
+
+// Auto-refresh every 30s
+loadData();
+setInterval(loadData, 30000);
 </script>
-
-<!-- Footer -->
-<div class="container-fluid mt-4 mb-3">
-    <div class="row">
-        <div class="col-12">
-            <div class="text-center text-secondary small">
-                <i class="bi bi-shield me-1"></i> IBM Guardium Database Activity Monitor · Version 11.5 · All events are recorded for compliance
-            </div>
-        </div>
-    </div>
-</div>
-
 </body>
 </html>

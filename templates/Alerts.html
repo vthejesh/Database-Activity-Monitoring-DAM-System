@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DAM · Alerts</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500&family=Syne:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#040c1a;--surface:#071428;--card:#0a1e38;--border:#112240;--accent:#00d4ff;--red:#ef4444;--green:#10b981;--amber:#f59e0b;--text:#c8d6e5;--muted:#4a6080;--font:'Syne',sans-serif;--mono:'IBM Plex Mono',monospace}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:var(--font);min-height:100vh}
+.layout{display:grid;grid-template-columns:220px 1fr;min-height:100vh}
+.sidebar{background:var(--surface);border-right:1px solid var(--border)}
+.logo{padding:22px 20px;border-bottom:1px solid var(--border);font-size:13px;font-weight:700;color:#fff;letter-spacing:2px}
+nav a{display:flex;align-items:center;gap:10px;padding:11px 20px;color:var(--muted);font-size:13px;text-decoration:none;transition:all .15s;border-left:2px solid transparent}
+nav a:hover{color:var(--text);background:rgba(0,212,255,.04)}
+nav a.active{color:var(--accent);background:rgba(0,212,255,.08);border-left-color:var(--accent)}
+nav a svg{width:15px;height:15px}
+.main{overflow-y:auto}
+.header{background:var(--surface);border-bottom:1px solid var(--border);padding:16px 28px;display:flex;align-items:center;gap:12px}
+.header h1{font-size:17px;font-weight:700;color:#fff;flex:1}
+.btn-back{background:var(--card);border:1px solid var(--border);border-radius:5px;padding:7px 14px;color:var(--muted);font-size:12px;cursor:pointer;text-decoration:none;transition:all .15s}
+.btn-back:hover{color:var(--accent);border-color:var(--accent)}
+.content{padding:24px 28px}
+.alert-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:24px}
+.a-stat{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:18px;text-align:center}
+.a-val{font-size:32px;font-weight:800;margin-bottom:4px}
+.a-label{font-family:var(--mono);font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px}
+.alerts-table{background:var(--card);border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.at-header{display:flex;align-items:center;padding:16px 20px;border-bottom:1px solid var(--border);gap:10px}
+.at-header h2{font-size:14px;font-weight:600;color:#fff;flex:1}
+.refresh-btn{background:rgba(0,212,255,.08);border:1px solid rgba(0,212,255,.2);border-radius:4px;padding:6px 14px;color:var(--accent);font-family:var(--mono);font-size:11px;cursor:pointer;transition:all .15s}
+.refresh-btn:hover{background:rgba(0,212,255,.15)}
+table{width:100%;border-collapse:collapse}
+th{background:var(--surface);padding:10px 16px;text-align:left;font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:11px 16px;border-bottom:1px solid rgba(17,34,64,.6);font-size:13px;vertical-align:top}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(0,212,255,.02)}
+.sev-badge{display:inline-block;padding:3px 10px;border-radius:3px;font-family:var(--mono);font-size:11px;font-weight:500}
+.sev-critical{background:rgba(239,68,68,.15);color:var(--red);border:1px solid rgba(239,68,68,.3)}
+.sev-high{background:rgba(245,158,11,.12);color:var(--amber)}
+.sev-medium{background:rgba(0,212,255,.1);color:var(--accent)}
+.type-badge{display:inline-block;padding:3px 10px;border-radius:3px;font-family:var(--mono);font-size:11px;background:rgba(124,58,237,.1);color:#a78bfa}
+.btn-resolve{background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);border-radius:3px;padding:3px 10px;color:var(--green);font-family:var(--mono);font-size:11px;cursor:pointer;transition:all .15s;white-space:nowrap}
+.btn-resolve:hover{background:rgba(16,185,129,.18)}
+.desc-cell{max-width:300px;color:var(--muted);font-size:12px;line-height:1.5}
+.empty{padding:48px;text-align:center;color:var(--muted);font-size:14px}
+.pulse{animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+</style>
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="logo">DAM v3.0</div>
+    <nav>
+      <a href="/dashboard"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Dashboard</a>
+      <a href="/alerts" class="active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>Alerts</a>
+      <a href="/analytics"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Analytics</a>
+      <a href="/compliance"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Compliance</a>
+    </nav>
+  </aside>
+  <div class="main">
+    <div class="header">
+      <h1>Security Alerts</h1>
+      <button class="refresh-btn" onclick="load()">↻ Refresh</button>
+      <a class="btn-back" href="/dashboard">← Dashboard</a>
+    </div>
+    <div class="content">
+      <div class="alert-grid">
+        <div class="a-stat"><div class="a-val pulse" style="color:var(--red)" id="critCount">—</div><div class="a-label">Critical</div></div>
+        <div class="a-stat"><div class="a-val" style="color:var(--amber)" id="highCount">—</div><div class="a-label">High</div></div>
+        <div class="a-stat"><div class="a-val" style="color:var(--accent)" id="totalCount">—</div><div class="a-label">Total Active</div></div>
+      </div>
+      <div class="alerts-table">
+        <div class="at-header">
+          <h2>Active Alerts</h2>
+          <span id="lastUpdated" style="font-family:var(--mono);font-size:10px;color:var(--muted)"></span>
+        </div>
+        <table>
+          <thead><tr><th>Severity</th><th>Type</th><th>Description</th><th>User</th><th>Table</th><th>Time</th><th>Action</th></tr></thead>
+          <tbody id="alertsTbody"><tr><td colspan="7" class="empty">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+async function load(){
+  const r=await fetch('/api/alerts');
+  const d=await r.json();
+  const alerts=d.alerts||[];
+  document.getElementById('totalCount').textContent=alerts.length;
+  document.getElementById('critCount').textContent=alerts.filter(a=>a.severity==='Critical').length;
+  document.getElementById('highCount').textContent=alerts.filter(a=>a.severity==='High').length;
+  document.getElementById('lastUpdated').textContent='Updated '+new Date().toLocaleTimeString('en-IN',{hour12:false});
+  const tbody=document.getElementById('alertsTbody');
+  if(!alerts.length){tbody.innerHTML='<tr><td colspan="7" class="empty">✅ No active alerts — system secure</td></tr>';return}
+  tbody.innerHTML=alerts.map(a=>{
+    const sc='sev-'+(a.severity||'medium').toLowerCase();
+    const t=a.created_at?new Date(a.created_at).toLocaleString('en-IN',{hour12:false,dateStyle:'short',timeStyle:'medium'}):'—';
+    return `<tr>
+      <td><span class="sev-badge ${sc}">${a.severity||'—'}</span></td>
+      <td><span class="type-badge">${a.alert_type||'—'}</span></td>
+      <td class="desc-cell">${(a.description||'').substring(0,120)}</td>
+      <td style="font-weight:500">${a.username||'—'}</td>
+      <td style="font-family:var(--mono);font-size:11px;color:var(--muted)">${a.table_name||'—'}</td>
+      <td style="font-family:var(--mono);font-size:11px;color:var(--muted)">${t}</td>
+      <td><button class="btn-resolve" onclick="resolve(${a.alert_id},this)">Resolve</button></td>
+    </tr>`;
+  }).join('');
+}
+async function resolve(id,btn){
+  btn.textContent='…';btn.disabled=true;
+  await fetch(`/api/alerts/${id}/resolve`,{method:'POST'});
+  btn.closest('tr').remove();
+  const cnt=document.getElementById('totalCount');
+  cnt.textContent=Math.max(0,parseInt(cnt.textContent)-1);
+}
+load();setInterval(load,20000);
+</script>
+</body>
+</html>
