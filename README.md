@@ -8,6 +8,7 @@ The project demonstrates practical knowledge of database security, activity logg
 
 Project Structure
 dam_system/
+
 │
 ├── app.py               # Main Flask application (backend logic)
 ├── schema.sql           # Database schema (tables & constraints)
@@ -16,7 +17,6 @@ dam_system/
 ├── templates/           # Frontend HTML templates
 │   ├── login.html
 │   └── dashboard.html
-│
 └── README.md            # Project documentation
 
 What This Project Does
