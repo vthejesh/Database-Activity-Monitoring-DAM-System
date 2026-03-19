@@ -17,6 +17,7 @@ dam_system/
 ├── templates/           # Frontend HTML templates
 │   ├── login.html
 │   └── dashboard.html
+|
 └── README.md            # Project documentation
 
 What This Project Does
