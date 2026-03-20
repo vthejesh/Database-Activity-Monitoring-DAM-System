@@ -1514,6 +1514,7 @@ def init_database():
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4""",
     ]
 
+    
     for ddl in tables:
         cur.execute(ddl)
 
@@ -1575,3 +1576,4 @@ if __name__ == "__main__":
     print("=" * 70)
 
     app.run(debug=True, host="0.0.0.0", port=5000, threaded=True)
+    
