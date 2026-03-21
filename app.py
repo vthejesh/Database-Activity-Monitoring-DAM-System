@@ -1514,7 +1514,6 @@ def init_database():
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4""",
     ]
 
-    
     for ddl in tables:
         cur.execute(ddl)
 
