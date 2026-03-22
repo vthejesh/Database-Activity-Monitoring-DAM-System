@@ -1524,6 +1524,7 @@ def init_database():
             cur.execute("INSERT INTO users (username,password_hash,role,account_status,created_at) VALUES (%s,%s,%s,'Active',NOW())",(uname,pwd,role))
             print(f"✓ Created user: {uname} / {pwd}")
 
+
     # Seed firewall rules
     cur.execute("SELECT COUNT(*) FROM firewall_rules"); count = cur.fetchone()[0]
     if count == 0:
