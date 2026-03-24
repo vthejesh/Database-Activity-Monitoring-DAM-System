@@ -1525,6 +1525,7 @@ def init_database():
             print(f"✓ Created user: {uname} / {pwd}")
 
 
+
     # Seed firewall rules
     cur.execute("SELECT COUNT(*) FROM firewall_rules"); count = cur.fetchone()[0]
     if count == 0:
