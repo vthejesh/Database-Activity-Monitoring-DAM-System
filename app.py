@@ -1522,6 +1522,7 @@ def init_database():
         cur.execute("SELECT user_id FROM users WHERE username=%s",(uname,))
         if not cur.fetchone():
             
+            
             cur.execute("INSERT INTO users (username,password_hash,role,account_status,created_at) VALUES (%s,%s,%s,'Active',NOW())",(uname,pwd,role))
             print(f"✓ Created user: {uname} / {pwd}")
     # Seed firewall rules
