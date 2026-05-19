@@ -81,6 +81,8 @@ CREATE TABLE IF NOT EXISTS ip_blacklist (
 -- =====================================================
 CREATE TABLE IF NOT EXISTS compliance_logs (
     log_id INT AUTO_INCREMENT PRIMARY KEY,
+
+    
     activity_id INT,
     standard VARCHAR(50),
     finding TEXT,
