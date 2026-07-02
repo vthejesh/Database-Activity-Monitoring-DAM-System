@@ -152,6 +152,8 @@ async function load(){
   document.getElementById('aFailed').textContent=(c.kpis.failed||0).toLocaleString();
   document.getElementById('aToday').textContent=(c.kpis.today||0).toLocaleString();
 
+  
+
   mk('opChart','doughnut',{labels:c.operation_type_chart.labels,datasets:[{data:c.operation_type_chart.data,backgroundColor:CO,borderWidth:0,hoverOffset:5}]},{...noScale,cutout:'60%'});
   mk('sevChart','doughnut',{labels:c.severity_chart.labels,datasets:[{data:c.severity_chart.data,backgroundColor:c.severity_chart.colors,borderWidth:0,hoverOffset:5}]},{...noScale,cutout:'60%'});
   mk('userChart','bar',{labels:c.top_users_chart.labels,datasets:[{data:c.top_users_chart.data,backgroundColor:CO[0]+'88',borderColor:CO[0],borderWidth:1,borderRadius:4}]},{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#4a6080',font:{size:10}},grid:{display:false}},y:{ticks:{color:'#4a6080',font:{size:9}},grid:{color:'rgba(17,34,64,.8)'}}}});
