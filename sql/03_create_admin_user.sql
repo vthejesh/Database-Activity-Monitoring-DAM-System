@@ -5,6 +5,7 @@ USE dam_system;
 
 -- Insert default admin user if not exists
 -- Password: admin123 (hashed with bcrypt)
+
 INSERT IGNORE INTO users (username, password_hash, role, account_status, created_at)
 VALUES (
     'admin', 

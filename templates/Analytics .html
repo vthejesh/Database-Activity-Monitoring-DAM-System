@@ -153,6 +153,7 @@ async function load(){
   document.getElementById('aToday').textContent=(c.kpis.today||0).toLocaleString();
 
   
+  
 
   mk('opChart','doughnut',{labels:c.operation_type_chart.labels,datasets:[{data:c.operation_type_chart.data,backgroundColor:CO,borderWidth:0,hoverOffset:5}]},{...noScale,cutout:'60%'});
   mk('sevChart','doughnut',{labels:c.severity_chart.labels,datasets:[{data:c.severity_chart.data,backgroundColor:c.severity_chart.colors,borderWidth:0,hoverOffset:5}]},{...noScale,cutout:'60%'});
