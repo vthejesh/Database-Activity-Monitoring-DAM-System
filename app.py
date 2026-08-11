@@ -48,6 +48,9 @@ from flask import (
     render_template, session, redirect, send_file, g
 )
 from flask_cors import CORS
+from flask_socketio import SocketIO, emit
+from sklearn.ensemble import IsolationForest
+import numpy as np
 from mysql.connector import pooling
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4, letter
@@ -348,10 +351,21 @@ class SecurityDetector(BaseManager):
         suspicious = False
         severity   = "Low"
 
-        # 1. IP blacklist
+        # 1. IP blacklist & Threat Intelligence
         if a["ip_address"] in self.ip_blacklist:
             suspicious = True; severity = "Critical"
             reasons.append("IP address is blacklisted")
+            
+        # Public Threat Intelligence Integration (Mock)
+        # In a real scenario, this queries AbuseIPDB or similar.
+        if self._check_threat_intel(a["ip_address"]):
+            suspicious = True; severity = "Critical"
+            reasons.append("Threat Intelligence: IP is a known malicious actor")
+
+    def _check_threat_intel(self, ip_address):
+        # Local mock for Threat Intel (e.g. IPs with bad reputation)
+        known_bad_ips = {'185.153.196.22', '193.3.19.159', '45.144.225.96'}
+        return ip_address in known_bad_ips
 
         # 2. Role-based violations
         if a["role"] == "Guest" and a["operation_type"] in ("INSERT","UPDATE","DELETE","DROP","ALTER"):
@@ -517,31 +531,39 @@ class ComplianceManager(BaseManager):
 class AnomalyDetector(BaseManager):
     def __init__(self):
         super().__init__()
-        self.baselines = {}
+        self.models = {}
 
     def establish_baseline(self, user_id=None):
         if user_id:
-            stats = self.execute(
-                """SELECT AVG(queries_per_hour) AS avg_queries, STDDEV(queries_per_hour) AS std_queries
-                   FROM (SELECT DATE(access_timestamp) AS day, HOUR(access_timestamp) AS hour,
-                                COUNT(*) AS queries_per_hour
-                         FROM activity_logs WHERE user_id=%s GROUP BY day,hour) AS s""",
-                (user_id,), one=True
+            # Fetch historical query counts per hour for this user
+            history = self.execute(
+                """SELECT COUNT(*) AS queries_per_hour
+                   FROM activity_logs WHERE user_id=%s 
+                   GROUP BY DATE(access_timestamp), HOUR(access_timestamp)""",
+                (user_id,), all=True
             )
-            self.baselines[f"user_{user_id}"] = stats
-        return self.baselines
+            if history and len(history) > 10:
+                # Train an IsolationForest model on historical activity volume
+                X = np.array([[row['queries_per_hour']] for row in history])
+                clf = IsolationForest(contamination=0.05, random_state=42)
+                clf.fit(X)
+                self.models[f"user_{user_id}"] = clf
+        return self.models
 
     def detect_anomalies(self, activity: dict) -> list:
         anomalies = []
         if activity and activity.get("user_id"):
-            bl = self.baselines.get(f"user_{activity['user_id']}")
-            if bl and bl.get("avg_queries"):
+            model = self.models.get(f"user_{activity['user_id']}")
+            if model:
                 recent = self.execute(
                     "SELECT COUNT(*) AS count FROM activity_logs WHERE user_id=%s AND access_timestamp >= NOW() - INTERVAL 1 HOUR",
                     (activity["user_id"],), one=True
                 )
-                if recent and recent["count"] > bl["avg_queries"] + 3 * (bl["std_queries"] or 1):
-                    anomalies.append({"type":"Statistical Anomaly","description":f"Unusual activity volume: {recent['count']} queries/hour","severity":"Medium"})
+                if recent:
+                    # Predict using the ML model (-1 means anomaly, 1 means normal)
+                    prediction = model.predict([[recent['count']]])
+                    if prediction[0] == -1:
+                        anomalies.append({"type":"AI-Detected Anomaly","description":f"ML Model detected unusual query volume: {recent['count']} queries/hr","severity":"High"})
 
         if activity and activity.get("operation_type") == "LOGIN" and activity.get("username"):
             logins = self.execute(
@@ -549,7 +571,7 @@ class AnomalyDetector(BaseManager):
                 (activity["username"],), all=True
             ) or []
             if len(logins) >= 2 and logins[0]["ip_address"] != logins[1]["ip_address"]:
-                anomalies.append({"type":"Impossible Travel","description":f"Multiple logins from different IPs: {logins[0]['ip_address']} and {logins[1]['ip_address']}","severity":"High"})
+                anomalies.append({"type":"Impossible Travel","description":f"Multiple logins from different IPs: {logins[0]['ip_address']} and {logins[1]['ip_address']}","severity":"Critical"})
         return anomalies
 
 
@@ -945,6 +967,7 @@ app = Flask(__name__, template_folder="templates")
 app.secret_key = Config.SECRET_KEY
 app.permanent_session_lifetime = timedelta(hours=8)
 CORS(app)
+socketio = SocketIO(app, cors_allowed_origins="*")
 
 # Global manager references (populated in main)
 user_mgr           = None
@@ -1079,6 +1102,14 @@ def api_dashboard_data():
     stats      = activity_logger.get_stats()
     al         = security_detector.get_active_alerts() if session["role"] == "Admin" else []
 
+    # Dynamic Data Masking (DDM)
+    for act in activities:
+        if act.get('sql_query'):
+            # Mask Credit Cards
+            act['sql_query'] = re.sub(r'\b(?:\d[ -]*?){13,16}\b', 'XXXX-XXXX-XXXX-XXXX', act['sql_query'])
+            # Mask SSNs
+            act['sql_query'] = re.sub(r'\b\d{3}-\d{2}-\d{4}\b', 'XXX-XX-XXXX', act['sql_query'])
+
     return jsonify({
         "success":    True,
         "user":       user_mgr.get_by_id(session["user_id"]),
@@ -1186,6 +1217,10 @@ def ingest_agent_activity():
 
     activity  = activity_logger.execute("SELECT * FROM activity_logs WHERE activity_id=%s",(aid,),one=True) if aid else None
     anomalies = anomaly_detector.detect_anomalies(activity) if activity else []
+    
+    if anomalies:
+        for anomaly in anomalies:
+            socketio.emit('new_anomaly_alert', anomaly)
 
     return jsonify({"success":True,"activity_id":aid,"anomalies_detected":len(anomalies)>0})
 
@@ -1576,5 +1611,5 @@ if __name__ == "__main__":
     print("  Accounts : admin/admin123  ·  user1/user123  ·  guest1/guest123")
     print("=" * 70)
 
-    app.run(debug=True, host="0.0.0.0", port=5000, threaded=True)
+    socketio.run(app, debug=True, host="0.0.0.0", port=5000)
     

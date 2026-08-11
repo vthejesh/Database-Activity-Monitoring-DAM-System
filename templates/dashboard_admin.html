@@ -5,15 +5,16 @@
 <title>DAM · Admin Dashboard</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
 <style>
 :root{
-  --bg:#040c1a;--surface:#071428;--card:#0a1e38;--border:#112240;
-  --accent:#00d4ff;--accent2:#7c3aed;--red:#ef4444;--green:#10b981;
-  --amber:#f59e0b;--text:#c8d6e5;--muted:#4a6080;
-  --font:'Syne',sans-serif;--mono:'IBM Plex Mono',monospace;
+  --bg:#030712;--surface:rgba(17,24,39,0.6);--card:rgba(31,41,55,0.3);--border:rgba(75,85,99,0.4);
+  --accent:#38bdf8;--accent2:#818cf8;--red:#ef4444;--green:#10b981;
+  --amber:#f59e0b;--text:#f9fafb;--muted:#9ca3af;
+  --font:'Outfit',sans-serif;--mono:'JetBrains Mono',monospace;
 }
 *{margin:0;padding:0;box-sizing:border-box;scrollbar-width:thin;scrollbar-color:var(--border) transparent}
-body{background:var(--bg);color:var(--text);font-family:var(--font);min-height:100vh;display:flex}
+body{background:var(--bg);color:var(--text);font-family:var(--font);min-height:100vh;display:flex; backdrop-filter: blur(20px);}
 
 /* ── SIDEBAR ──────────────────────────────────────────── */
 .sidebar{
@@ -361,6 +362,27 @@ tr:last-child td{border-bottom:none}
 
 <script>
 let allActivities=[], timelineChart=null, opChart=null;
+
+// Connect to WebSocket
+const socket = io();
+socket.on('new_anomaly_alert', function(data) {
+    console.log("Real-time alert received:", data);
+    const alertsList = document.getElementById('alertsList');
+    const alertHtml = `
+      <div class="alert-item" style="border-left: 3px solid var(--red); padding: 12px; margin-bottom: 8px; background: rgba(239, 68, 68, 0.1);">
+        <div style="font-size: 13px; font-weight: 600; color: #fff;">⚠️ ${data.type}</div>
+        <div style="font-size: 11px; color: var(--muted); margin-top: 4px;">${data.description}</div>
+      </div>
+    `;
+    alertsList.insertAdjacentHTML('afterbegin', alertHtml);
+    
+    // Update KPI counter
+    const suspCount = document.getElementById('kSusp');
+    suspCount.textContent = parseInt(suspCount.textContent.replace(/,/g, '')) + 1;
+    
+    // Show top notification dot
+    document.querySelector('.alert-dot').style.display = 'block';
+});
 
 // Clock
 setInterval(()=>{

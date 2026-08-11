@@ -4,3 +4,5 @@ mysql-connector-python==8.1.0
 pytz==2023.3
 requests==2.31.0
 Werkzeug==2.3.7
+scikit-learn
+Flask-SocketIO==5.3.6
