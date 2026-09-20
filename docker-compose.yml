@@ -1,4 +1,4 @@
-version: '3.8'
+﻿version: '3.8'
 
 services:
   web:
@@ -6,11 +6,19 @@ services:
     ports:
       - "5000:5000"
     environment:
+      - DAM_DB_HOST=db
       - MYSQL_HOST=db
+      - DAM_DB_USER=root
       - MYSQL_USER=root
+      - DAM_DB_PASSWORD=root
+      - MYSQL_ROOT_PASSWORD=root
       - MYSQL_PASSWORD=root
+      - DAM_DB_NAME=dam_system
+      - MYSQL_DATABASE=dam_system
       - MYSQL_DB=dam_system
+      - DAM_DB_PORT=3306
       - MYSQL_PORT=3306
+      - DAM_SECRET_KEY=dam-enterprise-secret-key-change-me
     depends_on:
       db:
         condition: service_healthy
