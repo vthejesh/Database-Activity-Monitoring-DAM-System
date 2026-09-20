@@ -15,6 +15,7 @@ VALUES (
     NOW()
 );
 
+
 -- Insert a test user (password: user123)
 INSERT IGNORE INTO users (username, password_hash, role, account_status, created_at)
 VALUES (
