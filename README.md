@@ -6,6 +6,7 @@ It monitors database access, records user activities, and helps identify suspici
 
 The project demonstrates practical knowledge of database security, activity logging, and role-based access control.
 
+
 Project Structure
 dam_system/
 
