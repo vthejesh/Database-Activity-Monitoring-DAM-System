@@ -2,7 +2,7 @@ Database Activity Monitoring (DAM) System
 Overview
 
 The Database Activity Monitoring (DAM) System is a backend-driven security application built using Python (Flask) and MySQL.
-It monitors database access, records user activities, and helps identify suspicious or unauthorized operations based on defined access rules.
+It monitors database access, records user activities, and helps identify suspicious or unauthorized operations based on defined access rules
 
 The project demonstrates practical knowledge of database security, activity logging, and role-based access control.
 
