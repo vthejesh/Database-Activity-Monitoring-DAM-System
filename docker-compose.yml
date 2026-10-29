@@ -11,6 +11,7 @@ services:
       - DAM_DB_USER=root
       - MYSQL_USER=root
       - DAM_DB_PASSWORD=root
+      
       - MYSQL_ROOT_PASSWORD=root
       - MYSQL_PASSWORD=root
       - DAM_DB_NAME=dam_system
