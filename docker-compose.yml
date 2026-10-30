@@ -9,6 +9,7 @@ services:
       - DAM_DB_HOST=db
       - MYSQL_HOST=db
       - DAM_DB_USER=root
+      
       - MYSQL_USER=root
       - DAM_DB_PASSWORD=root
       
